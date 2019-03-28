@@ -10,3 +10,5 @@
 /abis/**/*.json
 *.swp
 chanterelle.js
+cliquebait-generated.json
+

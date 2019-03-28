@@ -6,5 +6,8 @@ compile-contracts: ## Compile all contracts from dapp/contracts and write puresc
 	node chanterelle.js compile
 	node chanterelle.js codegen
 
+generate-genesis: ## Generate a cliquebait.json file
+	node chanterelle.js genesis --input ./cliquebait.json --output cliquebait-generated.json
+
 test-plasma:  ## Run the plasma e2e
 	pulp test --src-path purs/src --test-path purs/test -m Spec.Main
