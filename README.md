@@ -3,7 +3,6 @@
 ### Install
 ```bash
 > npm install
-> bower install
 ```
 
 ### build purs files
@@ -14,4 +13,9 @@
 ### compile contracts
 ```bash
 > make compile-contracts
+```
+
+### run test suite
+```bash
+> make test-plasma
 ```

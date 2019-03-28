@@ -9,3 +9,4 @@
 /.psa*
 /abis/**/*.json
 *.swp
+chanterelle.js
