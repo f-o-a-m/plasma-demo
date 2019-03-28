@@ -10,7 +10,7 @@
     "purescript-prelude": "^4.0.0",
     "purescript-web3": "^1.0.0",
     "purescript-web3-generator": "^1.0.0",
-    "purescript-chanterelle": "f-o-a-m/chanterelle#v1.0.0"
+    "purescript-chanterelle": "f-o-a-m/chanterelle#solc-0.5-compat"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
