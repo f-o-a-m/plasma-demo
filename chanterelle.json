@@ -6,7 +6,8 @@
     "artifacts-dir": "abis",
     "modules": [ "PlasmaMVP"
                ],
-    "dependencies": [],
+    "dependencies": [ "solidity-rlp"
+                    ],
     "libraries": {
     },
     "purescript-generator": {
