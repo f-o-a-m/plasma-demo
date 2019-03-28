@@ -32,7 +32,7 @@ type DeployResults =
 deployScript :: DeployM DeployResults
 deployScript = do
   deployCfg@(DeployConfig {primaryAccount, provider}) <- ask
-  let bigGasLimit = unsafePartial fromJust $ parseBigNumber decimal "6000000"
+  let bigGasLimit = unsafePartial fromJust $ parseBigNumber decimal "8000000"
       txOpts = defaultTransactionOptions # _from ?~ primaryAccount
                                          # _gas ?~ bigGasLimit
   plasma  <- deployContract txOpts plasmaTestConfig
