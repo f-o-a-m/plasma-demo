@@ -8,9 +8,11 @@
   ],
   "dependencies": {
     "purescript-prelude": "^4.0.0",
+    "purescript-affjax": "^6.0.0",
     "purescript-web3": "^1.0.0",
     "purescript-web3-generator": "^1.0.0",
-    "purescript-chanterelle": "f-o-a-m/chanterelle#solc-0.5-compat"
+    "purescript-chanterelle": "f-o-a-m/chanterelle#solc-0.5-compat",
+    "purescript-servant": "f-o-a-m/purescript-servant#master"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",

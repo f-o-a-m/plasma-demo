@@ -1,5 +1,5 @@
 build-purs: ## Build whole purescript src and test file
-	pulp build --jobs 8 --src-path purs/src
+	pulp build --jobs 8 --src-path purs/src -I purs/test
 
 compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
