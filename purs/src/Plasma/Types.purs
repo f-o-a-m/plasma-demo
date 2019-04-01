@@ -3,16 +3,32 @@ module Plasma.Types where
 import Prelude
 
 import Control.Monad.Except (runExcept, withExcept)
+import Data.Argonaut (jsonParser)
+import Data.Argonaut as A
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype, un)
 import Foreign (F)
-import Foreign.Class (class Decode)
-import Foreign.Generic (decodeJSON, genericDecode, defaultOptions)
+import Foreign.Class (class Decode, class Encode)
+import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Web3 (Address)
+import Network.Ethereum.Web3 (Address, HexString)
+import Network.HTTP.Affjax.Request as Request
+import Partial.Unsafe (unsafeCrashWith)
 import Servant.Api.Types (class ToCapture)
-import Servant.Client.Client (Decoder)
+import Servant.Client.Client (Decoder, Encoder)
+
+newtype EthAddress = EthAddress Address
+                     derive instance genericEthAddress :: Generic EthAddress _
+derive instance newtypeEthAddress :: Newtype EthAddress _
+
+instance encodeEthAddress :: Encode EthAddress where
+  encode = genericEncode plasmaOptions
+
+instance captureEthAddress :: ToCapture EthAddress where
+  toCapture = show <<< un EthAddress
+
+--------------------------------------------------------------------------------
 
 newtype Position =
   Position { blockNumber :: Int
@@ -24,6 +40,8 @@ newtype Position =
 derive instance genericPosition :: Generic Position _
 instance decodePosition :: Decode Position where
   decode = genericDecode plasmaOptions
+
+--------------------------------------------------------------------------------
 
 newtype UTXO =
   UTXO { inputKeys :: Array String
@@ -38,11 +56,20 @@ derive instance genericUTXO :: Generic UTXO _
 instance decodeUTXO :: Decode UTXO where
   decode = genericDecode plasmaOptions
 
-newtype EthAddress = EthAddress Address
-derive instance newtypeEthAddress :: Newtype EthAddress _
+--------------------------------------------------------------------------------
 
-instance captureEthAddress :: ToCapture EthAddress where
-  toCapture = show <<< un EthAddress
+newtype PostDepositBody =
+  PostDepositBody { owner :: EthAddress
+                  , depositNonce :: Int
+                  }
+
+derive instance genericPostDepositBody :: Generic PostDepositBody _
+
+instance encodePostDepositBody :: Encode PostDepositBody where
+  encode = genericEncode plasmaOptions
+
+
+--------------------------------------------------------------------------------
 
 fEither :: F ~> Either String
 fEither = runExcept <<<  withExcept show
@@ -59,6 +86,16 @@ genericDecoder =
   , decode: fEither <<< decodeJSON
   }
 
+genericEncoder
+  :: forall a.
+     Encode a
+  => Encoder a A.Json
+genericEncoder =
+  { encode: unsafeFromRight <<< jsonParser <<< encodeJSON
+  , print: Request.Json
+  }
+  where
+    unsafeFromRight ea = case ea of
+      Right a -> a
+      Left e -> unsafeCrashWith ("unsafeFromRight Invalid Json encoding: " <> e)
 
-ld :: Decoder String (Array UTXO)
-ld = genericDecoder
