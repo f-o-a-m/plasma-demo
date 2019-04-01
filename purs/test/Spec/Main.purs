@@ -27,7 +27,7 @@ main = launchAff_  do
   let plasmaConfig :: PlasmaSpecConfig
       plasmaConfig = { plasmaAddress: deployResults.plasmaAddress
                      , clientEnv : { protocol: "http"
-                                   , baseURL: "127.0.0.1:1317"
+                                   , baseURL: "//127.0.0.1:1317/"
                                    }
                      , provider
                      , users
