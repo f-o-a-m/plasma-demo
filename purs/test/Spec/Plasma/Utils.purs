@@ -3,16 +3,20 @@ module Spec.Plasma.Utils where
 import Prelude
 
 import Chanterelle.Internal.Utils (pollTransactionReceipt)
-import Data.Either (Either(..))
+import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Monad.Reader (ReaderT, runReaderT)
+import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse_)
-import Effect.Aff (error, forkAff, killFiber)
+import Effect.Aff (Error, error, forkAff, killFiber)
 import Effect.Aff.AVar as AVar
-import Effect.Aff.Class (liftAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Network.Ethereum.Web3 (class EventFilter, Address, BigNumber, EventAction(..), HexString, Provider, TransactionReceipt(..), TransactionStatus(..), UIntN, Web3, event, eventFilter, forkWeb3', uIntNFromBigNumber)
 import Network.Ethereum.Web3.Solidity.Event (class DecodeEvent)
 import Network.Ethereum.Web3.Solidity.Sizes (S256, s256)
 import Partial.Unsafe (unsafeCrashWith)
+import Servant.Client.Request (AjaxError, ClientEnv, errorToString)
 import Type.Proxy (Proxy)
 
 
@@ -46,6 +50,30 @@ takeEventOrFail prx provider addrs web3Action = do
         Failed -> do
           AVar.put (Left txHash) var
         _ -> pure unit
+
+
+--------------------------------------------------------------------------------
+
+runRequest
+  :: forall m a.
+     MonadAff m
+  => MonadThrow Error m
+  => ClientEnv
+  -> ReaderT ClientEnv (ExceptT AjaxError m) a
+  -> m (Either AjaxError a)
+runRequest apiUrl req = runExceptT $ runReaderT req apiUrl
+
+assertRequest
+  :: forall m a.
+     MonadAff m
+  => MonadThrow Error m
+  => ClientEnv
+  -> ReaderT ClientEnv (ExceptT AjaxError m) a
+  -> m a
+assertRequest apiSettings req =
+  runRequest apiSettings req >>= either (throwError <<< error <<< errorToString) pure
+
+--------------------------------------------------------------------------------
 
 unsafeMkUInt256 :: BigNumber -> UIntN S256
 unsafeMkUInt256 n = unsafeFromJust (show n <> " is a valid uint256") $ uIntNFromBigNumber s256 n
