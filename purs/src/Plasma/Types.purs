@@ -12,14 +12,14 @@ import Foreign (F)
 import Foreign.Class (class Decode, class Encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Web3 (Address, HexString)
+import Network.Ethereum.Web3 (Address)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
 import Servant.Api.Types (class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
 
 newtype EthAddress = EthAddress Address
-                     derive instance genericEthAddress :: Generic EthAddress _
+derive instance genericEthAddress :: Generic EthAddress _
 derive instance newtypeEthAddress :: Newtype EthAddress _
 
 instance encodeEthAddress :: Encode EthAddress where

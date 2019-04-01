@@ -9,6 +9,21 @@ import Servant.Client.Client (buildGetRequest, buildPostRequest)
 import Servant.Client.Request (AjaxError, ClientEnv)
 
 
+type GetHealth =
+     S "health"
+  :> GET String
+
+getHealth
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => m String
+getHealth = buildGetRequest (RouteProxy :: RouteProxy GetHealth) noCaptures noQueryParams noHeaders PT.genericDecoder
+
+
+--------------------------------------------------------------------------------
+
 type GetUTXOs =
      S "balance"
   :> Capture "owner" PT.EthAddress
