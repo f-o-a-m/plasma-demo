@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "postshrinkwrap": "json --in-place -f package-lock.json -o json-0",
-    "postinstall": "bower install --production && pulp build --main ChanterelleMain -t chanterelle.js"
+    "postinstall": "bower install && pulp build --main ChanterelleMain -t chanterelle.js"
   },
   "devDependencies": {
     "bn.js": "^4.11.0",
