@@ -7,16 +7,32 @@ import Contracts.PlasmaMVP as PlasmaMVP
 import Data.Either (Either(..))
 import Data.Lens ((?~))
 import Network.Ethereum.Web3 (Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue)
+import Plasma.Routes as Routes
+import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
-import Spec.Plasma.Utils (unsafeMkUInt256, takeEventOrFail)
+import Spec.Plasma.Utils (takeEventOrFail, unsafeMkUInt256)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Type.Proxy (Proxy(..))
 
-plasmaSpec
+plasmaSpec :: PlasmaSpecConfig -> Spec Unit
+plasmaSpec cfg = do
+  nodeHealthSpec cfg
+  depositSpec cfg
+
+nodeHealthSpec
   :: PlasmaSpecConfig
   -> Spec Unit
-plasmaSpec {plasmaAddress, provider, users} = do
+nodeHealthSpec {clientEnv} = do
+  describe "Plasma Node Health" $
+    it "can call the /health endoint on the plasma node" $ do
+      health <- assertRequest clientEnv Routes.getHealth
+      health `shouldEqual` "healthy"
+
+depositSpec
+  :: PlasmaSpecConfig
+  -> Spec Unit
+depositSpec {plasmaAddress, provider, users} = do
   describe "Plasma Root Contract" $
     it "can deposit some ETH into the rootchain contract" $ do
       let depositAmount = embed 1000
