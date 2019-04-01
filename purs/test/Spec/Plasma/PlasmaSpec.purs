@@ -1,4 +1,4 @@
-module Spec.PlasmaSpec (plasmaSpec) where
+module Spec.Plasma.PlasmaSpec (plasmaSpec) where
 
 import Prelude
 
@@ -8,7 +8,7 @@ import Data.Either (Either(..))
 import Data.Lens ((?~))
 import Network.Ethereum.Web3 (Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue)
 import Spec.Config (PlasmaSpecConfig)
-import Spec.Utils (unsafeMkUInt256, takeEventOrFail)
+import Spec.Plasma.Utils (unsafeMkUInt256, takeEventOrFail)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Type.Proxy (Proxy(..))

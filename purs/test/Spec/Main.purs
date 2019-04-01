@@ -14,7 +14,7 @@ import Effect.Class (liftEffect)
 import Network.Ethereum.Web3 (httpProvider)
 import Node.Process as NP
 import Spec.Config (PlasmaSpecConfig, mkUsers)
-import Spec.PlasmaSpec (plasmaSpec)
+import Spec.Plasma.PlasmaSpec (plasmaSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner as Runner
 

@@ -1,4 +1,4 @@
-module Spec.Utils where
+module Spec.Plasma.Utils where
 
 import Prelude
 

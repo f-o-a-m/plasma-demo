@@ -43,8 +43,8 @@
       }
     },
     "purescript-generator": {
-        "output-path": "purs/src",
-        "module-prefix": "Contracts"
+        "output-path": "purs/src/Plasma",
+        "module-prefix": "Plasma.Contracts"
     },
     "solc-optimizer": {
       "enabled": true,
