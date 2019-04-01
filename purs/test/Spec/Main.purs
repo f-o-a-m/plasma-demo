@@ -2,17 +2,18 @@ module Spec.Main where
 
 import Prelude
 
-import Chanterelle.Test (buildTestConfig)
+--import Chanterelle.Test (buildTestConfig)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un)
 import Data.Time.Duration (Minutes(..), fromDuration)
-import Deploy as Deploy
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
-import Network.Ethereum.Web3 (httpProvider)
+import Network.Ethereum.Web3 (httpProvider, mkAddress, mkHexString)
 import Node.Process as NP
+import Partial.Unsafe (unsafeCrashWith)
+--import Plasma.Deploy as Deploy
 import Spec.Config (PlasmaSpecConfig, mkUsers)
 import Spec.Plasma.PlasmaSpec (plasmaSpec)
 import Test.Spec.Reporter (consoleReporter)
@@ -23,9 +24,13 @@ main = launchAff_  do
   nodeUrl <- liftEffect $ fromMaybe "http://localhost:8545" <$> NP.lookupEnv "NODE_URL"
   provider <- liftEffect $ httpProvider nodeUrl
   users <- mkUsers provider
-  deployResults <- buildTestConfig nodeUrl 60 Deploy.deployScript
+  --deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy
+  plasmaAddressStr <- liftEffect (NP.lookupEnv "PLASMA_ADDRESS")
+  let plasmaAddress = case plasmaAddressStr >>= mkHexString >>= mkAddress of
+        Nothing -> unsafeCrashWith "Must provide PLASMA_ADDRESS env var."
+        Just addr -> addr
   let plasmaConfig :: PlasmaSpecConfig
-      plasmaConfig = { plasmaAddress: deployResults.plasmaAddress
+      plasmaConfig = { plasmaAddress: plasmaAddress
                      , clientEnv : { protocol: "http"
                                    , baseURL: "//127.0.0.1:1317/"
                                    }

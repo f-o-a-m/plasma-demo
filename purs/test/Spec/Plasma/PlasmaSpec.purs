@@ -38,7 +38,7 @@ depositSpec {plasmaAddress, provider, users} = do
       let depositAmount = embed 1000
           txOpts = defaultTransactionOptions # _from ?~ users.bob
                                              # _to ?~ plasmaAddress
-                                             # _gas  ?~ embed 9999999
+                                             # _gas  ?~ embed 8000000
                                              # _value ?~ (mkValue depositAmount :: Value Wei)
       eRes <- assertWeb3 provider <<< takeEventOrFail (Proxy :: Proxy PlasmaMVP.Deposit) provider plasmaAddress $
         PlasmaMVP.deposit txOpts { owner: users.bob
