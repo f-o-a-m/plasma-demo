@@ -9,8 +9,6 @@
     "dependencies": [ "solidity-rlp"
                     ],
     "libraries": {
-    },
-    "libraries": {
       "BytesUtil": {
         "address": "0x3b4a9878a26f2557e5c61df82bc84f07842fa939",
         "code": {
