@@ -1,0 +1,25 @@
+module Plasma.Routes where
+
+import Control.Monad.Error.Class (class MonadError)
+import Control.Monad.Reader.Class (class MonadAsk)
+import Effect.Aff.Class (class MonadAff)
+import Plasma.Types as PT
+import Servant.Api.Types (type (:>), Capture, Captures, GET, RouteProxy(..), S, noHeaders, noQueryParams)
+import Servant.Client.Client (buildGetRequest)
+import Servant.Client.Request (AjaxError, ClientEnv)
+
+
+type GetUTXOs =
+     S "balance"
+  :> Capture "owner" PT.EthAddress
+  :> GET (Array PT.UTXO)
+
+getUTXOs
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => Captures (owner :: PT.EthAddress)
+  -> m (Array PT.UTXO)
+getUTXOs captures =
+  buildGetRequest (RouteProxy :: RouteProxy GetUTXOs) captures noQueryParams noHeaders PT.genericDecoder
