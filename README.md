@@ -93,3 +93,8 @@ I[2046-04-02|14:05:54.388] binding to contract address 0xe545eaf693277ead76f5d9b
 ...
 
 ```
+
+## WARNINGS
+We are still trying to figure out how to automate config/setup so that it's the same everywhere (test config vs $HOME/.plasmad/config/plasma.toml etc). Until that's done, you should check this warnings list/ update it with new warnings when you find them.
+1. When running `make plasma-test` you need to supply the root chain plasma contract with environment variable `PLASMA_ADDRESS`.
+2. When running `make plasma-test` you need to make sure that the `FINALIZE_PERIOD` environment variable is the same as what's listed under `ethereum_finality` in the plasma.toml file. Otherwise you will not be able to pass the include deposit test.
