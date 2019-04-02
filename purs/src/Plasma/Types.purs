@@ -7,6 +7,8 @@ import Data.Argonaut (jsonParser)
 import Data.Argonaut as A
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Eq (genericEq)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Newtype (class Newtype, un)
 import Foreign (F)
 import Foreign.Class (class Decode, class Encode)
@@ -38,8 +40,15 @@ newtype Position =
            }
 
 derive instance genericPosition :: Generic Position _
+derive instance newtypePosition :: Newtype Position _
 instance decodePosition :: Decode Position where
   decode = genericDecode plasmaOptions
+
+instance showPosition :: Show Position where
+  show = genericShow
+
+instance eqPosition :: Eq Position where
+  eq = genericEq
 
 --------------------------------------------------------------------------------
 
@@ -53,14 +62,21 @@ newtype UTXO =
        }
 
 derive instance genericUTXO :: Generic UTXO _
+
+instance showUTXO :: Show UTXO where
+  show = genericShow
+
+instance eqUTXO :: Eq UTXO where
+  eq = genericEq
+
 instance decodeUTXO :: Decode UTXO where
   decode = genericDecode plasmaOptions
 
 --------------------------------------------------------------------------------
 
 newtype PostDepositBody =
-  PostDepositBody { owner :: EthAddress
-                  , depositNonce :: Int
+  PostDepositBody { ownerAddress :: EthAddress
+                  , depositNonce :: String
                   }
 
 derive instance genericPostDepositBody :: Generic PostDepositBody _

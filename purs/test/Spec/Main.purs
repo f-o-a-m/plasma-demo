@@ -2,7 +2,6 @@ module Spec.Main where
 
 import Prelude
 
---import Chanterelle.Test (buildTestConfig)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un)
@@ -10,14 +9,15 @@ import Data.Time.Duration (Minutes(..), fromDuration)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
+import Effect.Console as C
 import Network.Ethereum.Web3 (httpProvider, mkAddress, mkHexString)
 import Node.Process as NP
 import Partial.Unsafe (unsafeCrashWith)
---import Plasma.Deploy as Deploy
-import Spec.Config (PlasmaSpecConfig, mkUsers)
+import Spec.Config (PlasmaSpecConfig, getFinalizedPeriod, mkUsers)
 import Spec.Plasma.PlasmaSpec (plasmaSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner as Runner
+import Unsafe.Coerce (unsafeCoerce)
 
 main :: Effect Unit
 main = launchAff_  do
@@ -29,6 +29,7 @@ main = launchAff_  do
   let plasmaAddress = case plasmaAddressStr >>= mkHexString >>= mkAddress of
         Nothing -> unsafeCrashWith "Must provide PLASMA_ADDRESS env var."
         Just addr -> addr
+  finalizedPeriod <- liftEffect getFinalizedPeriod
   let plasmaConfig :: PlasmaSpecConfig
       plasmaConfig = { plasmaAddress: plasmaAddress
                      , clientEnv : { protocol: "http"
@@ -36,6 +37,10 @@ main = launchAff_  do
                                    }
                      , provider
                      , users
+                     , finalizedPeriod
                      }
+  liftEffect do
+    C.log "Running PlasmaSpec with config:"
+    C.log (unsafeCoerce plasmaConfig)
   un Identity $ Runner.runSpecT Runner.defaultConfig {timeout = Just (fromDuration $ Minutes 6.0)} [consoleReporter] do
     plasmaSpec plasmaConfig
