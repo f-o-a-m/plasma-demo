@@ -18,7 +18,7 @@ generate-genesis: ## Generate a cliquebait.json file
 	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
 test-plasma:  ## Run the plasma e2e
-	ulp test --src-path purs/src --test-path purs/test -m Spec.Main
+	pulp test --src-path purs/src --test-path purs/test -m Spec.Main
 
 deploy-contracts: ## Deploy contracts with local config from dapp/contracts project
 	chanterelle deploy ./output/Plasma.Deploy/index.js
