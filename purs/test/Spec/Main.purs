@@ -24,7 +24,7 @@ main = launchAff_  do
   nodeUrl <- liftEffect $ fromMaybe "http://localhost:8545" <$> NP.lookupEnv "NODE_URL"
   provider <- liftEffect $ httpProvider nodeUrl
   users <- mkUsers provider
-  --deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy
+  --deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy'
   plasmaAddressStr <- liftEffect (NP.lookupEnv "PLASMA_ADDRESS")
   let plasmaAddress = case plasmaAddressStr >>= mkHexString >>= mkAddress of
         Nothing -> unsafeCrashWith "Must provide PLASMA_ADDRESS env var."
