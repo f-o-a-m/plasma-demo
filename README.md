@@ -1,10 +1,43 @@
 # plasma-demo
 
-## Setting up the tendermint node and server
-1. follow the installation instructions here https://github.com/f-o-a-m/plasma-mvp-sidechain/tree/http-server. This means running `go install` in both the server and client directories (again, see the instructions there).
-2. Running `plasmad init` inside that directory should create `.plasmad` rooted in `$HOME`. Inside you should find a `config/plasma.toml` file that's important for the next part below.
-3. To start the node, run `$GOBIN/plasmad start`. Note that in order to start the node, you need to have already deployed a contract and have put the address in this config file. See below for details.
-4. To start the server, run `$GOBIN/plasmacli rest-server`. This should spin up the server on `127.0.0.1:1317`.
+## Requirements
+- [npm](https://www.npmjs.com/)
+- [Go](https://golang.org/doc/install)
+- Set [GOPATH environment variable](https://github.com/golang/go/wiki/SettingGOPATH)
+- [dep](https://golang.github.io/dep/docs/installation.html)
+
+## Setting up `plasma-mvp-sidechain` (only once)
+
+1. Install original sources of `plasma-mvp-sidechain` and switch to our custom branch as follow:
+```
+go get github.com/FourthState/plasma-mvp-sidechain
+
+cd $GOPATH/src/github.com/FourthState/plasma-mvp-sidechain
+
+git remote rename origin upstream
+git remote add origin git@github.com:f-o-a-m/plasma-mvp-sidechain.git
+
+git fetch --all
+git checkout http-server
+
+dep ensure -vendor-only
+```
+
+2. Install `plasmad` and `plasmacli`
+```
+cd server/plasmad
+go install ./...
+```
+```
+cd client/plasmacli
+go install ./...
+```
+
+## Run the tendermint node and server
+
+1. Run `plasmad init` should create `.plasmad` rooted in `$HOME`. Inside you should find a `config/plasma.toml` file. Open that file to add the address of the `PlasmaMVP` contract to `ethereum_plasma_contract_address`. To do that, you need to have already deployed the `PlasmaMVP` contract as described in [compile contracts](#compile-contracts).
+2. To start the node, run `plasmad start`.
+3. To start the server, run `plasmacli rest-server`. This should spin up the server on `127.0.0.1:1317`.
 
 ## Running the test suite
 
@@ -33,6 +66,9 @@ You can then launch cliquebait with this json file using
 ```
 
 ### compile contracts
+
+Make sure that the previous change in `chanterelle.json` has been reverted, so that the `source-dir` field is set to `contracts`.
+
 ```bash
 > make compile-contracts
 ```
@@ -46,4 +82,14 @@ make deploy-contracts
 Make sure you have the tendermint node up
 ```bash
 > PLASMA_ADDRESS=<whatever-the-address-is> make test-plasma
+```
+
+`PLASMA_ADDRESS` is visible after running `plasmad start`. In following example it is `0xe545eaf693277ead76f5d9b4665291b0ac38853c`:
+```
+plasmad start 
+I[2046-04-02|14:05:54.360] Starting ABCI with Tendermint                module=main 
+I[2046-04-02|14:05:54.388] binding to contract address 0xe545eaf693277ead76f5d9b4665291b0ac38853c module=main
+
+...
+
 ```
