@@ -33,13 +33,14 @@ depositSpec
   :: PlasmaSpecConfig
   -> Spec Unit
 depositSpec {plasmaAddress, provider, users} = do
+  let
+    defaultPlasmaTxOptions = defaultTransactionOptions # _to ?~ plasmaAddress
+                                                       # _gas  ?~ embed 8000000
   describe "Plasma Root Contract" $
     it "can deposit some ETH into the rootchain contract" $ do
       let depositAmount = embed 1000
-          txOpts = defaultTransactionOptions # _from ?~ users.bob
-                                             # _to ?~ plasmaAddress
-                                             # _gas  ?~ embed 8000000
-                                             # _value ?~ (mkValue depositAmount :: Value Wei)
+          txOpts = defaultPlasmaTxOptions # _from ?~ users.bob
+                                          # _value ?~ (mkValue depositAmount :: Value Wei)
       eRes <- assertWeb3 provider <<< takeEventOrFail (Proxy :: Proxy PlasmaMVP.Deposit) provider plasmaAddress $
         PlasmaMVP.deposit txOpts { owner: users.bob
                                  }
