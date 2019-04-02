@@ -12,14 +12,13 @@ build-purs: ## Build whole purescript src and test file
 
 compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
-	node chanterelle.js compile
-	node chanterelle.js codegen
+	chanterelle build
 
 generate-genesis: ## Generate a cliquebait.json file
-	node chanterelle.js genesis --input ./cliquebait.json --output cliquebait-generated.json
+	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
 test-plasma:  ## Run the plasma e2e
 	ulp test --src-path purs/src --test-path purs/test -m Spec.Main
 
 deploy-contracts: ## Deploy contracts with local config from dapp/contracts project
-	pulp run --jobs 8 --src-path purs/src -m Plasma.Deploy
+	chanterelle deploy ./output/Plasma.Deploy/index.js

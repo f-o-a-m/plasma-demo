@@ -11,7 +11,7 @@
     "purescript-affjax": "^6.0.0",
     "purescript-web3": "^1.0.0",
     "purescript-web3-generator": "^1.0.0",
-    "purescript-chanterelle": "f-o-a-m/chanterelle#solc-0.5-compat",
+    "purescript-chanterelle": "f-o-a-m/chanterelle#v2.0.1",
     "purescript-servant": "f-o-a-m/purescript-servant#master"
   },
   "devDependencies": {
