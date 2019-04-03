@@ -8,17 +8,17 @@ help: ## Ask for help!
 
 
 build-purs: ## Build whole purescript src and test file
-	pulp build --jobs 8 --src-path purs/src -I purs/test
+	node_modules/.bin/pulp build --jobs 8 --src-path purs/src -I purs/test
 
 compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
-	chanterelle build
+	node_modules/.bin/chanterelle build
 
 generate-genesis: ## Generate a cliquebait.json file
-	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
+	node_modules/.bin/chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
 test-plasma:  ## Run the plasma e2e
-	pulp test --src-path purs/src --test-path purs/test -m Spec.Main
+	node_modules/.bin/pulp test --src-path purs/src --test-path purs/test -m Spec.Main
 
 deploy-contracts: ## Deploy contracts with local config from dapp/contracts project
-	chanterelle deploy ./output/Plasma.Deploy/index.js
+	node_modules/.bin/chanterelle deploy ./output/Plasma.Deploy/index.js
