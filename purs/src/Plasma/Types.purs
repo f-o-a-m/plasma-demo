@@ -12,6 +12,7 @@ import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
+import Data.String (joinWith)
 import Foreign (F, ForeignError(..), fail)
 import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
@@ -20,7 +21,7 @@ import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
 import Network.Ethereum.Web3 (Address, BigNumber)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
-import Servant.Api.Types (class ToCapture)
+import Servant.Api.Types (class EncodeQueryParam, class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
 
 newtype EthAddress = EthAddress Address
@@ -87,24 +88,57 @@ instance showPosition :: Show Position where
 instance eqPosition :: Eq Position where
   eq = genericEq
 
+instance encodeQueryParamPosition :: EncodeQueryParam Position where
+  encodeQueryParam (Position p) =
+    let indexes = map show [ p.blockNumber
+                           , p.transactionIndex
+                           , p.outputIndex
+                           , p.depositNonce
+                           ]
+    in "(" <> joinWith "," indexes <> ")"
+
 --------------------------------------------------------------------------------
 
---newtype Proof =
---  Proof { "RootHash" :: Base64String
---        , "Data" :: Base64String
---        , proof :: { total :: IntString
---             
---                   }
---    
---        }
+newtype Transaction =
+  Transaction { hash :: Base64String
+              , height :: IntString
+              , index :: Int
+              }
 
---newtype TransactionResult =
---  TransactionResult { hash :: Base64String
---                    , txBytes :: Base64String
---                    , proof :: Proof
---                    }
+derive instance genericTransaction :: Generic Transaction _
+derive instance newtypeTransaction :: Newtype Transaction _
+instance decodeTransaction :: Decode Transaction where
+  decode = genericDecode plasmaOptions
 
+--------------------------------------------------------------------------------
 
+newtype Proof =
+  Proof { "RootHash" :: Base64String
+        , "Data" :: Base64String
+        , "Proof" :: { total :: IntString
+                     , index :: IntString
+                     , leaf_hash :: Base64String
+                     , aunts :: Maybe (Array String)
+                     }
+        }
+
+derive instance genericProof :: Generic Proof _
+derive instance newtypeProof :: Newtype Proof _
+instance decodeProof :: Decode Proof where
+  decode = genericDecode plasmaOptions
+
+--------------------------------------------------------------------------------
+
+newtype ReturnedTransaction =
+  ReturnedTransaction { transaction :: Transaction
+                      , tx :: Base64String
+                      , proof :: Proof
+                      }
+
+derive instance genericReturnedTransaction :: Generic ReturnedTransaction _
+derive instance newtypeReturnedTransaction :: Newtype ReturnedTransaction _
+instance decodeReturnedTransaction :: Decode ReturnedTransaction where
+  decode = genericDecode plasmaOptions
 
 --------------------------------------------------------------------------------
 
