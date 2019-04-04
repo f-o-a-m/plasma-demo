@@ -149,7 +149,6 @@ instance showGetProof :: Show Proof where
 
 --------------------------------------------------------------------------------
 
-
 newtype GetProofResp =
   GetProofResp { transaction :: Transaction
                , proof :: Maybe Base64String
@@ -198,6 +197,19 @@ derive instance genericPostDepositBody :: Generic PostDepositBody _
 instance encodePostDepositBody :: Encode PostDepositBody where
   encode = genericEncode plasmaOptions
 
+--------------------------------------------------------------------------------
+
+newtype PostSpendBody =
+  PostSpendBody { sync :: Boolean
+                -- TODO (sectore): Define `Transaction` type
+                -- , transaction :: Transaction 
+                }
+
+derive instance genericPostSpendBody :: Generic PostSpendBody _
+
+instance encodePostSpendBody :: Encode PostSpendBody where
+  encode = genericEncode plasmaOptions
+
 
 --------------------------------------------------------------------------------
 
@@ -232,4 +244,3 @@ genericEncoder =
     unsafeFromRight ea = case ea of
       Right a -> a
       Left e -> unsafeCrashWith ("unsafeFromRight Invalid Json encoding: " <> e)
-

@@ -7,6 +7,7 @@ import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Reader.Class (class MonadAsk)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un, wrap)
+import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
@@ -88,6 +89,7 @@ getProof
   -> m PT.GetProofResp
 getProof qps = buildGetRequest (RouteProxy :: RouteProxy GetProof) noCaptures qps noHeaders PT.genericDecoder
 
+testGetProof :: Effect Unit
 testGetProof = launchAff_ do
   r@(PT.GetProofResp resp) <- assertRequest {protocol : "http", baseURL: "//127.0.0.1:1317/"} $ getProof $
   QueryParams { ownerAddress: Required (unsafeCoerce "11205dbb90321aeb5e6b8a6792f1e83412bb522b")
@@ -141,6 +143,7 @@ getUTXO
 getUTXO qps = buildGetRequest (RouteProxy :: RouteProxy GetUTXO) noCaptures qps noHeaders PT.genericDecoder
 
 
+testGetUTXO :: Effect Unit
 testGetUTXO = launchAff_ do
   resp <- assertRequest {protocol : "http", baseURL: "//127.0.0.1:1317/"} $ getUTXO $
             QueryParams { ownerAddress: Required (unsafeCoerce "11205dbb90321aeb5e6b8a6792f1e83412bb522b")
@@ -152,3 +155,20 @@ testGetUTXO = launchAff_ do
                                               )
                         }
   C.logShow resp
+
+--------------------------------------------------------------------------------
+
+type PostSpend =
+     S "spend"
+  :> POST PT.PostSpendBody String
+
+postSpend
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => PT.PostSpendBody
+  -> m String
+postSpend body =
+  buildPostRequest (RouteProxy :: RouteProxy PostSpend) noCaptures body noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder

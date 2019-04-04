@@ -20,8 +20,11 @@ SHELL := /bin/bash
 install: ## Sets up prerequistes
 	npm install && bower install
 
-build-purs: ## Build whole purescript src and test file
+build-purs: ## Build purescript src files
 	pulp build --jobs 8 --src-path purs/src
+
+build-purs-editor: ## Build purescript src and test files for using VSCode
+	pulp build --jobs 8 --src-path purs/src -I purs/test -- --json-errors
 
 compile-contracts: build-purs ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
