@@ -34,6 +34,9 @@ instance encodeEthAddress :: Encode EthAddress where
 instance captureEthAddress :: ToCapture EthAddress where
   toCapture = show <<< un EthAddress
 
+instance encodeQueryParamEthAddress :: EncodeQueryParam EthAddress where
+  encodeQueryParam = un EthAddress >>> show
+
 --------------------------------------------------------------------------------
 
 newtype Base64String = Base64String BS.ByteString
@@ -103,6 +106,8 @@ newtype Transaction =
   Transaction { hash :: Base64String
               , height :: IntString
               , index :: Int
+              , tx :: Base64String
+              , proof :: Proof
               }
 
 derive instance genericTransaction :: Generic Transaction _
@@ -129,15 +134,16 @@ instance decodeProof :: Decode Proof where
 
 --------------------------------------------------------------------------------
 
-newtype ReturnedTransaction =
-  ReturnedTransaction { transaction :: Transaction
-                      , tx :: Base64String
-                      , proof :: Proof
-                      }
 
-derive instance genericReturnedTransaction :: Generic ReturnedTransaction _
-derive instance newtypeReturnedTransaction :: Newtype ReturnedTransaction _
-instance decodeReturnedTransaction :: Decode ReturnedTransaction where
+newtype GetProofResp =
+  GetProofResp { transaction :: Transaction
+               , proofAunts :: Base64String
+               }
+
+
+derive instance genericGetProofResp :: Generic GetProofResp _
+derive instance newtypeGetProofResp :: Newtype GetProofResp _
+instance decodeGetProofResp :: Decode GetProofResp where
   decode = genericDecode plasmaOptions
 
 --------------------------------------------------------------------------------
