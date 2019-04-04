@@ -5,16 +5,19 @@ import Prelude
 import Control.Monad.Except (runExcept, withExcept)
 import Data.Argonaut (jsonParser)
 import Data.Argonaut as A
+import Data.ByteString as BS
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
-import Foreign (F)
-import Foreign.Class (class Decode, class Encode)
+import Foreign (F, ForeignError(..), fail)
+import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Web3 (Address)
+import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
+import Network.Ethereum.Web3 (Address, BigNumber)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
 import Servant.Api.Types (class ToCapture)
@@ -29,6 +32,40 @@ instance encodeEthAddress :: Encode EthAddress where
 
 instance captureEthAddress :: ToCapture EthAddress where
   toCapture = show <<< un EthAddress
+
+--------------------------------------------------------------------------------
+
+newtype Base64String = Base64String BS.ByteString
+
+derive instance genericBase64String :: Generic Base64String _
+derive instance newtypeBase64String :: Newtype Base64String _
+
+instance decodeBase64String :: Decode Base64String where
+  decode x = do
+    s <- decode x
+    case BS.fromString s BS.Base64 of
+      Nothing -> fail (ForeignError $ "Failed to parse as Base64String: " <> s)
+      Just bs -> pure $ Base64String bs
+
+instance encodeBase64String :: Encode Base64String where
+  encode = encode <<< flip BS.toString BS.Base64 <<< un Base64String
+
+--------------------------------------------------------------------------------
+
+newtype IntString = IntString BigNumber
+
+derive instance genericIntString :: Generic IntString _
+derive instance newtypeIntString :: Newtype IntString _
+
+instance decodeIntString :: Decode IntString where
+  decode x = do
+    s <- decode x
+    case parseBigNumber decimal s of
+      Nothing -> fail (ForeignError $ "Failed to parse as IntString: " <> s)
+      Just is -> pure $ IntString is
+
+instance encodeIntString :: Encode IntString where
+  encode = encode <<< toString decimal <<< un IntString
 
 --------------------------------------------------------------------------------
 
@@ -49,6 +86,25 @@ instance showPosition :: Show Position where
 
 instance eqPosition :: Eq Position where
   eq = genericEq
+
+--------------------------------------------------------------------------------
+
+--newtype Proof =
+--  Proof { "RootHash" :: Base64String
+--        , "Data" :: Base64String
+--        , proof :: { total :: IntString
+--             
+--                   }
+--    
+--        }
+
+--newtype TransactionResult =
+--  TransactionResult { hash :: Base64String
+--                    , txBytes :: Base64String
+--                    , proof :: Proof
+--                    }
+
+
 
 --------------------------------------------------------------------------------
 
@@ -86,6 +142,10 @@ instance encodePostDepositBody :: Encode PostDepositBody where
 
 
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
 
 fEither :: F ~> Either String
 fEither = runExcept <<<  withExcept show
