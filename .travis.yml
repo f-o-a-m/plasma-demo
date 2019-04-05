@@ -3,6 +3,11 @@ language: go
 go:
   - 1.11.x
 
+addons:
+  apt:
+    packages:
+    - git
+
 env:
   - DEP_VERSION="0.4.1"
 
