@@ -22,7 +22,8 @@ install:
   - cd $GOPATH/src/github.com/FourthState/plasma-mvp-sidechain
   - git remote rename origin upstream 
   - git remote add origin git@github.com:f-o-a-m/plasma-mvp-sidechain.git
-  - git fetch --all git checkout http-server
+  - git fetch --all
+  - git checkout http-server
   - dep ensure -vendor-only
   - cd $HOME/plasma-demo
   - cd server/plasmad 
