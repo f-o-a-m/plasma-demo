@@ -26,10 +26,15 @@ install:
   - git fetch --all
   - git checkout http-server
   - dep ensure -vendor-only
-  - cd $HOME/f-o-a-m/plasma-demo
+  - cd $GOPATH/src/github.com/f-o-a-m/plasma-demo
   - cd server/plasmad 
   - go install ./...
-  - cd $HOME/f-o-a-m/plasma-demo 
+  - cd $GOPATH/src/github.com/f-o-a-m/plasma-demo 
   - cd client/plasmacli 
   - go install ./...
 
+  # deploy contracts
+  - npm i
+  - make compile-contracts
+  - docker run  -it -p 8545:8545  -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
+  - make deploy-contracts
