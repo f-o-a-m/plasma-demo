@@ -26,11 +26,9 @@ install:
   - git fetch --all
   - git checkout http-server
   - dep ensure -vendor-only
-  - cd $GOPATH/src/github.com/f-o-a-m/plasma-demo
   - cd server/plasmad 
   - go install ./...
-  - cd $GOPATH/src/github.com/f-o-a-m/plasma-demo 
-  - cd client/plasmacli 
+  - cd ../../client/plasmacli 
   - go install ./...
 
   # deploy contracts
