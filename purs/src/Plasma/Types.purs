@@ -17,7 +17,7 @@ import Foreign (F, ForeignError(..), fail)
 import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
+import Network.Ethereum.Core.BigNumber (BigNumber, decimal, parseBigNumber, toString)
 import Network.Ethereum.Web3 (Address, BigNumber)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
@@ -44,6 +44,9 @@ newtype Base64String = Base64String BS.ByteString
 derive instance genericBase64String :: Generic Base64String _
 derive instance newtypeBase64String :: Newtype Base64String _
 
+instance showBase64String :: Show Base64String where
+  show = flip BS.toString BS.Base64 <<< un Base64String
+
 instance decodeBase64String :: Decode Base64String where
   decode x = do
     s <- decode x
@@ -60,6 +63,8 @@ newtype IntString = IntString BigNumber
 
 derive instance genericIntString :: Generic IntString _
 derive instance newtypeIntString :: Newtype IntString _
+
+derive newtype instance showIntString :: Show IntString
 
 instance decodeIntString :: Decode IntString where
   decode x = do
@@ -98,7 +103,7 @@ instance encodeQueryParamPosition :: EncodeQueryParam Position where
                            , p.outputIndex
                            , p.depositNonce
                            ]
-    in "(" <> joinWith "," indexes <> ")"
+    in "(" <> joinWith "." indexes <> ")"
 
 --------------------------------------------------------------------------------
 
@@ -109,6 +114,9 @@ newtype Transaction =
               , tx :: Base64String
               , proof :: Proof
               }
+
+instance showGetTransaction :: Show Transaction where
+  show = genericShow
 
 derive instance genericTransaction :: Generic Transaction _
 derive instance newtypeTransaction :: Newtype Transaction _
@@ -132,6 +140,9 @@ derive instance newtypeProof :: Newtype Proof _
 instance decodeProof :: Decode Proof where
   decode = genericDecode plasmaOptions
 
+instance showGetProof :: Show Proof where
+  show = genericShow
+
 --------------------------------------------------------------------------------
 
 
@@ -145,6 +156,9 @@ derive instance genericGetProofResp :: Generic GetProofResp _
 derive instance newtypeGetProofResp :: Newtype GetProofResp _
 instance decodeGetProofResp :: Decode GetProofResp where
   decode = genericDecode plasmaOptions
+
+instance showGetProofResp :: Show GetProofResp where
+  show = genericShow
 
 --------------------------------------------------------------------------------
 
