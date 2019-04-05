@@ -8,6 +8,7 @@
 /.purs*
 /.psa*
 /abis/**/*.json
+/purs/src/Plasma/Contracts
 *.swp
 chanterelle.js
 cliquebait-generated.json

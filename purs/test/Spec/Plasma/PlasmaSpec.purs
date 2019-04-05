@@ -71,4 +71,5 @@ depositSpec {plasmaAddress, clientEnv, provider, users, finalizedPeriod} = do
                                                                  )
           let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
                 (un Position u.position).depositNonce == depositNonceInt
+          C.logShow utxo
           utxo `shouldSatisfy` isJust

@@ -2,7 +2,7 @@
 -- | PlasmaMVP
 --------------------------------------------------------------------------------
 
-module Contracts.PlasmaMVP where
+module Plasma.Contracts.PlasmaMVP where
 
 import Prelude 
 
