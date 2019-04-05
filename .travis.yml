@@ -26,10 +26,10 @@ install:
   - git fetch --all
   - git checkout http-server
   - dep ensure -vendor-only
-  - cd $HOME/plasma-demo
+  - cd $HOME/f-o-a-m/plasma-demo
   - cd server/plasmad 
   - go install ./...
-  - cd $HOME/plasma-demo 
+  - cd $HOME/f-o-a-m/plasma-demo 
   - cd client/plasmacli 
   - go install ./...
 
