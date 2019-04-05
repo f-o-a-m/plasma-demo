@@ -47,6 +47,10 @@ derive instance newtypeBase64String :: Newtype Base64String _
 instance showBase64String :: Show Base64String where
   show = flip BS.toString BS.Base64 <<< un Base64String
 
+
+instance eqBase64String :: Eq Base64String where
+  eq = genericEq
+
 instance decodeBase64String :: Decode Base64String where
   decode x = do
     s <- decode x
@@ -163,10 +167,10 @@ instance showGetProofResp :: Show GetProofResp where
 --------------------------------------------------------------------------------
 
 newtype UTXO =
-  UTXO { inputKeys :: Array String
-       , spenderKeys :: Array String
-       , confirmationHash :: String
-       , "MerkleHash" :: String
+  UTXO { inputKeys :: Array Base64String
+       , spenderKeys :: Array Base64String
+       , confirmationHash :: Base64String
+       , "MerkleHash" :: Base64String
        , spent :: Boolean
        , position :: Position
        }
