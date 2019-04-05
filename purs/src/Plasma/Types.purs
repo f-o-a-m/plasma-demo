@@ -152,7 +152,7 @@ instance showGetProof :: Show Proof where
 
 newtype GetProofResp =
   GetProofResp { transaction :: Transaction
-               , proofAunts :: Base64String
+               , proof :: Maybe Base64String
                }
 
 
