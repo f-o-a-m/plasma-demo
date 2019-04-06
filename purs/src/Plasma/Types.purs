@@ -17,7 +17,7 @@ import Foreign (F, ForeignError(..), fail)
 import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Core.BigNumber (BigNumber, decimal, parseBigNumber, toString)
+import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
 import Network.Ethereum.Web3 (Address, BigNumber)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
