@@ -41,8 +41,11 @@ install:
   - cd $TRAVIS_BUILD_DIR
   - npm i
   - make build-purs
-  - make compile-contracts
+  - sed -i '/source-dir/c\   \"source-dir\" : \"contracts/libraries\",' chanterelle.json
+  - make generate-genesis
   - docker run -it -p 8545:8545 -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
+  - sed -i '/source-dir/c\   \"source-dir\" : \"contracts\",' chanterelle.json
+  - make compile-contracts
   - make deploy-contracts
 
   # build app
