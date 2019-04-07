@@ -24,6 +24,7 @@ before_install:
 
 install:
   # get deps
+  - pwd
   - go get github.com/FourthState/plasma-mvp-sidechain || true
   - cd $GOPATH/src/github.com/FourthState/plasma-mvp-sidechain
   - git remote rename origin upstream 
@@ -37,6 +38,7 @@ install:
   - go install ./...
 
   # deploy contracts
+  - cd $TRAVIS_BUILD_DIR
   - npm i
   - make compile-contracts
   - docker run -it -p 8545:8545 -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
