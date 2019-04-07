@@ -2,7 +2,7 @@
 {
     "name": "plasma-demo",
     "version": "0.0.1",
-    "source-dir": "contracts",
+   "source-dir" : "contracts/libraries",
     "artifacts-dir": "abis",
     "modules": [ "PlasmaMVP"
                ],
