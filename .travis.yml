@@ -18,7 +18,7 @@ before_install:
   - chmod +x $GOPATH/bin/dep
 
 install:
-  - pwd
+  # get deps
   - go get github.com/FourthState/plasma-mvp-sidechain || true
   - cd $GOPATH/src/github.com/FourthState/plasma-mvp-sidechain
   - git remote rename origin upstream 
@@ -36,3 +36,10 @@ install:
   - make compile-contracts
   - docker run  -it -p 8545:8545  -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
   - make deploy-contracts
+
+  # build app
+  - make build-purs
+
+  # install plasma
+  - plasmad init
+  - plasmad start &
