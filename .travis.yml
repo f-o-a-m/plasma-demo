@@ -40,6 +40,7 @@ install:
   # deploy contracts
   - cd $TRAVIS_BUILD_DIR
   - npm i
+  - make build-purs
   - make compile-contracts
   - docker run -it -p 8545:8545 -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
   - make deploy-contracts
