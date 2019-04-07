@@ -11,11 +11,11 @@ addons:
 env:
   - DEP_VERSION="0.4.1"
 
-before_install:
+ #before_install:
   # Download the binary to bin folder in $GOPATH
-  - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
+  # - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
   # Make the binary executable
-  - chmod +x $GOPATH/bin/dep
+  # - chmod +x $GOPATH/bin/dep
 
 install:
   # get deps
@@ -34,7 +34,7 @@ install:
   # deploy contracts
   - npm i
   - make compile-contracts
-  - docker run  -it -p 8545:8545  -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
+  - docker run -it -p 8545:8545 -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
   - make deploy-contracts
 
   # build app
