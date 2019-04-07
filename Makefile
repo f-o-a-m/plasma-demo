@@ -11,7 +11,7 @@ PATH  := node_modules/.bin:$(PATH)
 SHELL := /bin/bash
 
 build-purs: ## Build whole purescript src and test file
-	pulp build --jobs 8 --src-path purs/src -I purs/test
+	pulp build --jobs 8 --src-path purs/src
 
 compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
