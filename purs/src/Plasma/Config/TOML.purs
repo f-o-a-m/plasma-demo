@@ -92,7 +92,7 @@ instance tomlValueBool :: TomlValue Boolean where
 
 type PlasmaConfig =
   { is_operator :: Boolean
-  , ethereum_operator_private_key :: PrivateKey
+  , ethereum_operator_privatekey :: PrivateKey
   , ethereum_plasma_contract_address :: Address
   , plasma_block_commitment_rate :: TimeInterval
   , ethereum_nodeurl :: String
@@ -127,7 +127,7 @@ makeConfigFromEnvironment = do
   nodeURL <- requireEnvVar "NODE_URL"
   finality <- requireEnvVar "FINALIZED_PERIOD" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
   pure { is_operator: isOperator
-       , ethereum_operator_private_key: privateKey
+       , ethereum_operator_privatekey: privateKey
        , ethereum_plasma_contract_address: plasmaAddress
        , plasma_block_commitment_rate: TimeInterval commitmentRate
        , ethereum_nodeurl: nodeURL
