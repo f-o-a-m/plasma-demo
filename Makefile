@@ -15,11 +15,11 @@ build-purs: ## Build whole purescript src and test file
 
 compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
-	sed -i '/source-dir/c\     \"source-dir\" : \"contracts\",' chanterelle.json
+	sed -i '/source-dir/c\      \"source-dir\": \"contracts\",' chanterelle.json
 	chanterelle build
 
 generate-genesis: ## Generate a cliquebait.json file
-	sed -i '/source-dir/c\     \"source-dir\" : \"contracts/libraries\",' chanterelle.json
+	sed -i '/source-dir/c\      \"source-dir\": \"contracts/libraries\",' chanterelle.json
 	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
 prepare-plasma:
