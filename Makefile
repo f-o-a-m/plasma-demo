@@ -4,6 +4,12 @@ export
 FINALIZED_PERIOD ?= 18
 NODE_URL ?= http://localhost:8545
 
+# plasma config vars, need to supply operator private key
+PLASMA_CONFIG_DESTINATION ?= $(HOME)/.plasmad/config/plasma.toml
+IS_OPERATOR ?= true
+COMMITMENT_RATE ?= 2
+PLASMA_ARTIFACT ?= ./abis/PlasmaMVP.json
+
 help: ## Ask for help!
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -23,6 +29,10 @@ compile-contracts: build-purs ## Compile all contracts from dapp/contracts and w
 
 generate-genesis: ## Generate a cliquebait.json file
 	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
+
+write-plasma: ## write the plasma config to the plasma.toml file
+	pulp run --jobs 8 --src-path purs/src -m Plasma.Config.TOMLMain
+
 
 prepare-plasma:
 	sed -i "/ethereum_plasma_contract_address = /c\ethereum_plasma_contract_address = `cat abis/PlasmaMVP.json | jq \".networks[].address\"`" "$(HOME)/.plasmad/config/plasma.toml"

@@ -1,4 +1,9 @@
-module Plasma.Config.TOML where
+module Plasma.Config.TOML
+  ( PlasmaConfig
+  , TimeInterval
+  , writePlasmaConfig
+  , makeConfigFromEnvironment
+  ) where
 
 import Prelude
 
@@ -14,8 +19,7 @@ import Data.Maybe (Maybe(..))
 import Data.String (joinWith)
 import Data.Symbol (class IsSymbol, SProxy, reflectSymbol)
 import Data.Tuple (Tuple(..))
-import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
+import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as C
 import Effect.Exception (throw)
@@ -29,7 +33,6 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Process as NP
 import Partial.Unsafe (unsafeCrashWith)
-
 
 {-
 
@@ -122,7 +125,7 @@ makeConfigFromEnvironment = do
   plasmaAddress <- discoverPlasmaContractAddress
   commitmentRate <- requireEnvVar "COMMITMENT_RATE" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
   nodeURL <- requireEnvVar "NODE_URL"
-  finality <- requireEnvVar "COMMITMENT_RATE" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
+  finality <- requireEnvVar "FINALIZED_PERIOD" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
   pure { is_operator: isOperator
        , ethereum_operator_private_key: privateKey
        , ethereum_plasma_contract_address: plasmaAddress
@@ -138,11 +141,6 @@ writePlasmaConfig cfg = do
   let content = templateTomlFile cfg
   C.log ("Writing plasma config to " <> configDest)
   writeTextFile UTF8 configDest content
-
-configMain :: Effect Unit
-configMain = launchAff_ do
-  cfg <- makeConfigFromEnvironment
-  writePlasmaConfig cfg
 
 --------------------------------------------------------------------------------
 -- | ConfigUtils
