@@ -1,4 +1,4 @@
-module Plasma.Config where
+module Plasma.Config.TOML where
 
 import Prelude
 
