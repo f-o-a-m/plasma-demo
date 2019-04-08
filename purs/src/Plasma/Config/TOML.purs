@@ -107,12 +107,14 @@ data TomlEntry = TomlEntry
 instance tomlEntry :: (TomlValue a, IsSymbol sym) => FoldingWithIndex TomlEntry (SProxy sym) (Array (Tuple String String)) a (Array (Tuple String String)) where
   foldingWithIndex TomlEntry prop acc a = Tuple (reflectSymbol prop) (toTomlValue a) : acc
 
+-- | Using the toTomlValue instances, fold over the PlasmaConfig record to build the toml file as a string
 templateTomlFile :: PlasmaConfig -> String
 templateTomlFile = joinWith "\n" <<< map (\(Tuple k v) -> k <> " = " <> v) <<< toTomlFile
   where
     toTomlFile :: PlasmaConfig -> TomlFile
     toTomlFile = hfoldlWithIndex TomlEntry ([] :: TomlFile)
 
+-- | read a bunch env vars and dynamically try to figure out where the plasma contract address is coming from.
 makeConfigFromEnvironment :: Aff PlasmaConfig
 makeConfigFromEnvironment = do
   isOperator <- requireEnvVarBool "IS_OPERATOR"
@@ -129,9 +131,10 @@ makeConfigFromEnvironment = do
        , ethereum_finality: finality
        }
 
+-- | write the plasma config to a file.
 writePlasmaConfig :: PlasmaConfig -> Aff Unit
 writePlasmaConfig cfg = do
-  configDest <- requireEnvVar "CONFIG_DESTINATION"
+  configDest <- requireEnvVar "PLASMA_CONFIG_DESTINATION"
   let content = templateTomlFile cfg
   C.log ("Writing plasma config to " <> configDest)
   writeTextFile UTF8 configDest content
@@ -141,6 +144,8 @@ configMain = launchAff_ do
   cfg <- makeConfigFromEnvironment
   writePlasmaConfig cfg
 
+--------------------------------------------------------------------------------
+-- | ConfigUtils
 --------------------------------------------------------------------------------
 
 data AddressSource =
