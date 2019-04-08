@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 export
-FINALIZED_PERIOD ?= 15
+FINALIZED_PERIOD ?= 18
 
 help: ## Ask for help!
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
