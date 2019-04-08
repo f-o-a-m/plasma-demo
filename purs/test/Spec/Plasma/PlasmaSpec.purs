@@ -46,6 +46,7 @@ depositSpec {plasmaAddress, clientEnv, provider, users, finalizedPeriod} = do
                                                        # _gas  ?~ embed 8000000
   describe "Plasma Root Contract" $
     it "can deposit some ETH into the rootchain contract, transfer it to the sidechain, and find the utxo" $ do
+      C.log $ "plasmaAddress: " <> show plasmaAddress
       let depositAmount = embed 1000
           txOpts = defaultPlasmaTxOptions # _from ?~ users.bob
                                           # _value ?~ (mkValue depositAmount :: Value Wei)

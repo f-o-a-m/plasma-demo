@@ -12,6 +12,7 @@
     "purescript-web3": "^1.0.0",
     "purescript-web3-generator": "^1.0.0",
     "purescript-chanterelle": "f-o-a-m/chanterelle#v2.0.1",
+    "purescript-chanterelle": "f-o-a-m/chanterelle#v2.0.2",
     "purescript-servant": "f-o-a-m/purescript-servant#master",
     "purescript-heterogeneous": "0.2.0"
   },
