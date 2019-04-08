@@ -1,4 +1,4 @@
-# 🧼plasma-demo 🔥
+# 🧼🔥 plasma-demo 🔥🧼
 [![Build Status](https://travis-ci.com/f-o-a-m/plasma-demo.svg?token=S5ycohXqQwQa9vbXx9fF&branch=master)](https://travis-ci.com/f-o-a-m/plasma-demo)
 
 ## Requirements
