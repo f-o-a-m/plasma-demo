@@ -10,6 +10,7 @@
 ## Easy install 
 
 ```
+> make install
 > docker-compose up -d
 > sleep 5
 > make deploy-and-test
