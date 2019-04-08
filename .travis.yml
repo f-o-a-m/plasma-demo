@@ -1,0 +1,58 @@
+language: go
+
+dist: xenial
+sudo: true
+
+go:
+  - 1.12.x
+
+addons:
+  apt:
+    packages:
+    - git
+
+env:
+  - DEP_VERSION="0.5.1"
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install binutils
+  # Download the binary to bin folder in $GOPATH
+  - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
+  # Make the binary executable
+  - chmod +x $GOPATH/bin/dep
+
+install:
+  # get deps
+  - pwd
+  - go get github.com/FourthState/plasma-mvp-sidechain || true
+  - cd $GOPATH/src/github.com/FourthState/plasma-mvp-sidechain
+  - git remote rename origin upstream 
+  - git remote add origin https://github.com/f-o-a-m/plasma-mvp-sidechain.git
+  - git fetch --all
+  - git checkout http-server
+  - dep ensure -vendor-only
+  - cd server/plasmad 
+  - go install ./...
+  - cd ../../client/plasmacli 
+  - go install ./...
+
+  # deploy contracts
+  - cd $TRAVIS_BUILD_DIR
+  - npm i
+  - make build-purs
+  - make generate-genesis
+  - docker run -d -p 8545:8545 -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
+  - make compile-contracts
+  - make deploy-contracts
+
+  # install plasma
+  - plasmad init
+  - make prepare-plasma
+  - mkdir -p $HOME/.plasmacli
+  - ln -s $HOME/.plasmad/config/plasma.toml $HOME/.plasmacli/plasma.toml
+  - plasmad start &
+  - plasmacli rest-server &
+
+  # test plasma
+  - PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` make test-plasma
