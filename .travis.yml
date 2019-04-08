@@ -55,4 +55,4 @@ install:
   - plasmacli rest-server &
 
   # test plasma
-  - make test-plasma
+  - PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` make test-plasma
