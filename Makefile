@@ -23,7 +23,7 @@ generate-genesis: ## Generate a cliquebait.json file
 	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
 prepare-plasma:
-	sed -i "/ethereum_plasma_contract_address = /c\ethereum_plasma_contract_address = `cat abis/PlasmaMVP.json | jq -r \".networks[].address\"`" "$(HOME)/.plasmad/config/plasma.toml"
+	sed -i "/ethereum_plasma_contract_address = /c\ethereum_plasma_contract_address = `cat abis/PlasmaMVP.json | jq \".networks[].address\"`" "$(HOME)/.plasmad/config/plasma.toml"
 
 test-plasma:  ## Run the plasma e2e
 	pulp test --src-path purs/src --test-path purs/test -m Spec.Main
