@@ -49,8 +49,9 @@ install:
   # install plasma
   - plasmad init
   - make prepare-plasma
+  - ln -s $HOME/.plasmad/config/plasma.toml $HOME/.plasmacli/plasma.toml
   - plasmad start &
-  - plasmacli rest-server
+  - plasmacli rest-server &
 
   # test plasma
   - make test-plasma

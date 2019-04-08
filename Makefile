@@ -26,6 +26,7 @@ prepare-plasma:
 	sed -i "/ethereum_plasma_contract_address = /c\ethereum_plasma_contract_address = `cat abis/PlasmaMVP.json | jq \".networks[].address\"`" "$(HOME)/.plasmad/config/plasma.toml"
 
 test-plasma:  ## Run the plasma e2e
+	sed -i "/module Plasma.Contracts.PlasmaMVP where/c\module Contracts.PlasmaMVP where" purs/src/Plasma/Contracts/PlasmaMVP.purs
 	pulp test --src-path purs/src --test-path purs/test -m Spec.Main
 
 deploy-contracts: ## Deploy contracts with local config from dapp/contracts project
