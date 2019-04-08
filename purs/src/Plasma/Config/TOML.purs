@@ -76,7 +76,7 @@ instance tomlValueString :: TomlValue String where
   toTomlValue = identity >>> withQuotes
 
 instance tomlValueTimeInterval :: TomlValue TimeInterval where
-  toTomlValue (TimeInterval n) = withQuotes $ toTomlValue n <> "s"
+  toTomlValue (TimeInterval n) = withQuotes $ show n <> "s"
 
 instance tomlValuePrivateKey :: TomlValue PrivateKey where
   toTomlValue = unPrivateKey >>> unHex >>> withQuotes
