@@ -9,6 +9,9 @@
 
 ## Easy install 
 
+
+We now provide a super simple way to run the test-suite. It only depends on docker!
+
 ```
 > make install
 > docker-compose up -d
