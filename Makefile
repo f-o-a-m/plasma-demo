@@ -11,10 +11,13 @@ help: ## Ask for help!
 PATH  := node_modules/.bin:$(PATH)
 SHELL := /bin/bash
 
+install: ## Sets up prerequistes
+	npm install && bower install
+
 build-purs: ## Build whole purescript src and test file
 	pulp build --jobs 8 --src-path purs/src
 
-compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
+compile-contracts: build-purs ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr purs/src/Contracts
 	chanterelle build
 
@@ -27,7 +30,7 @@ prepare-plasma:
 test-plasma:  ## Run the plasma e2e
 	NODE_URL=$(NODE_URL) pulp test --src-path purs/src --test-path purs/test -m Spec.Main
 
-deploy-contracts: ## Deploy contracts with local config from dapp/contracts project
+deploy-contracts: compile-contracts ## Deploy contracts with local config from dapp/contracts project
 	NODE_URL=$(NODE_URL) chanterelle deploy ./output/Plasma.Deploy/index.js
 
 deploy-and-test: deploy-contracts
