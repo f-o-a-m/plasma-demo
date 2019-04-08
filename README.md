@@ -108,6 +108,9 @@ I[2046-04-02|14:05:54.388] binding to contract address 0xe545eaf693277ead76f5d9b
 
 ```
 
+## Generating a plasma.toml config file
+You can generate a plasma.toml config file by running `make write-plasma-toml`. At present, you will need to supply an environment variable for the OPERATOR_PRIVATE_KEY.
+
 ## WARNINGS
 We are still trying to figure out how to automate config/setup so that it's the same everywhere (test config vs $HOME/.plasmad/config/plasma.toml etc). Until that's done, you should check this warnings list/ update it with new warnings when you find them.
 1. When running `make plasma-test` you need to supply the root chain plasma contract with environment variable `PLASMA_ADDRESS`.

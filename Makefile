@@ -30,7 +30,7 @@ compile-contracts: build-purs ## Compile all contracts from dapp/contracts and w
 generate-genesis: ## Generate a cliquebait.json file
 	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
-write-plasma: ## write the plasma config to the plasma.toml file
+write-plasma-toml: ## write the plasma config to the plasma.toml file
 	pulp run --jobs 8 --src-path purs/src -m Plasma.Config.TOMLMain
 
 
