@@ -7,6 +7,15 @@
 - Set [GOPATH environment variable](https://github.com/golang/go/wiki/SettingGOPATH)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 
+## Easy install 
+
+```
+> docker-compose up -d
+> sleep 5
+> make deploy-and-test
+> docker-compose down
+```
+
 ## Setting up `plasma-mvp-sidechain` (only once)
 
 1. Install original sources of `plasma-mvp-sidechain` and switch to our custom branch as follow:
