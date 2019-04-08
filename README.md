@@ -1,4 +1,4 @@
-# plasma-demo
+# 🧼🔥 plasma-demo 🔥🧼
 [![Build Status](https://travis-ci.com/f-o-a-m/plasma-demo.svg?token=S5ycohXqQwQa9vbXx9fF&branch=master)](https://travis-ci.com/f-o-a-m/plasma-demo)
 
 ## Requirements
@@ -6,6 +6,19 @@
 - [Go](https://golang.org/doc/install)
 - Set [GOPATH environment variable](https://github.com/golang/go/wiki/SettingGOPATH)
 - [dep](https://golang.github.io/dep/docs/installation.html)
+
+## Easy install 
+
+
+We now provide a super simple way to run the test-suite. It only depends on docker!
+
+```
+> make install
+> docker-compose up -d
+> sleep 5
+> make deploy-and-test
+> docker-compose down
+```
 
 ## Setting up `plasma-mvp-sidechain` (only once)
 
