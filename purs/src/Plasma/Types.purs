@@ -10,19 +10,25 @@ import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Lens (Lens', (^.))
+import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens.Record as LR
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
 import Data.String (joinWith)
+import Data.Symbol (SProxy(..))
 import Foreign (F, ForeignError(..), fail)
 import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
-import Network.Ethereum.Web3 (Address, BigNumber)
+import Network.Ethereum.Core.BigNumber (decimal, embed, parseBigNumber, toString)
+import Network.Ethereum.Core.RLP (RLPObject(..))
+import Network.Ethereum.Web3 (Address, BigNumber, mkAddress, mkHexString)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
 import Servant.Api.Types (class EncodeQueryParam, class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
+import Spec.Plasma.Utils (unsafeFromJust)
 
 newtype EthAddress = EthAddress Address
 derive instance genericEthAddress :: Generic EthAddress _
@@ -123,6 +129,18 @@ defaultPosition = Position
   , depositNonce: 0
   }
 
+positionBlockNumber :: Lens' Position Int
+positionBlockNumber = _Newtype <<< LR.prop (SProxy :: SProxy "blockNumber")
+
+positionTransactionIndex :: Lens' Position Int
+positionTransactionIndex = _Newtype <<< LR.prop (SProxy :: SProxy "transactionIndex")
+
+positionOutputIndex :: Lens' Position Int
+positionOutputIndex = _Newtype <<< LR.prop (SProxy :: SProxy "outputIndex")
+
+positionDepositNonce :: Lens' Position Int
+positionDepositNonce = _Newtype <<< LR.prop (SProxy :: SProxy "depositNonce")
+
 --------------------------------------------------------------------------------
 
 newtype TendermintTransaction =
@@ -206,6 +224,7 @@ newtype Input =
         , confirmSignatures :: Array Base64String
         }
 
+derive instance newtypeInput :: Newtype Input _
 derive instance genericInput :: Generic Input _
 
 instance showInput :: Show Input where
@@ -217,6 +236,19 @@ instance decodeInput :: Decode Input where
 instance encodeInput :: Encode Input where
   encode = genericEncode plasmaOptions
 
+emptyInput :: Input
+emptyInput = Input
+  { position: defaultPosition
+  , signature: emptyBase64String
+  , confirmSignatures: mempty
+  }
+
+inputPosition :: Lens' Input Position
+inputPosition = _Newtype <<< LR.prop (SProxy :: SProxy "position")
+
+inputConfirmSignatures :: Lens' Input (Array Base64String)
+inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatures")
+
 --------------------------------------------------------------------------------
 
 newtype Output =
@@ -224,6 +256,7 @@ newtype Output =
          , amount :: BigNumber
          }
 
+derive instance newtypeOutput :: Newtype Output _
 derive instance genericOutput :: Generic Output _
 
 instance showOutput :: Show Output where
@@ -235,16 +268,29 @@ instance decodeOutput :: Decode Output where
 instance encodeOutput :: Encode Output where
   encode = genericEncode plasmaOptions
 
+emptyOutput :: Output
+emptyOutput = Output
+  { owner: zeroAddress
+  , amount: embed 0
+  }
+
+outputOwner :: Lens' Output Address
+outputOwner = _Newtype <<< LR.prop (SProxy :: SProxy "owner")
+
+outputAmount :: Lens' Output BigNumber
+outputAmount = _Newtype <<< LR.prop (SProxy :: SProxy "amount")
+
 --------------------------------------------------------------------------------
 
 newtype Transaction =
   Transaction { input0 :: Input
-              , input1 :: Maybe Input
+              , input1 :: Input
               , output0 :: Output
-              , output1 :: Maybe Output
+              , output1 :: Output
               , fee :: BigNumber
               }
 
+derive instance newtypeTransaction :: Newtype Transaction _
 derive instance genericTransaction :: Generic Transaction _
 
 instance showTransaction :: Show Transaction where
@@ -255,6 +301,32 @@ instance decodeTransaction :: Decode Transaction where
 
 instance encodeTransaction :: Encode Transaction where
   encode = genericEncode plasmaOptions
+
+transactionInput0 :: Lens' Transaction Input
+transactionInput0 = _Newtype <<< LR.prop (SProxy :: SProxy "input0")
+
+makeTransactionRLP :: Transaction -> RLPObject
+makeTransactionRLP (Transaction tx) = RLPArray
+  [ RLPInt $ tx.input0 ^. (inputPosition <<< positionBlockNumber)       -- BlkNum0           [32]byte
+  , RLPInt $ tx.input0 ^. (inputPosition <<< positionTransactionIndex)  -- TxIndex0          [32]byte
+  , RLPInt $ tx.input0 ^. (inputPosition <<< positionOutputIndex)       -- OIndex0           [32]byte
+  , RLPInt $ tx.input0 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce0     [32]byte
+  , makeConfirmSignaturesRLP $ tx.input0 ^. inputConfirmSignatures      -- Input0ConfirmSigs [130]byte
+  , RLPInt $ tx.input1 ^. (inputPosition <<< positionBlockNumber)       -- BlkNum1           [32]byte
+  , RLPInt $ tx.input1 ^. (inputPosition <<< positionTransactionIndex)  -- TxIndex1          [32]byte
+  , RLPInt $ tx.input1 ^. (inputPosition <<< positionOutputIndex)       -- OIndex1           [32]byte
+  , RLPInt $ tx.input1 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce1     [32]byte
+  , makeConfirmSignaturesRLP $ tx.input1 ^. inputConfirmSignatures      -- Input1ConfirmSigs [130]byte
+  , RLPAddress $ tx.output0 ^. outputOwner                              -- NewOwner0         common.Address
+  , RLPBigNumber $ tx.output0 ^. outputAmount                           -- Amount0           [32]byte
+  , RLPAddress $ tx.output1 ^. outputOwner                              -- NewOwner1         common.Address
+  , RLPBigNumber $ tx.output1 ^. outputAmount                           -- Amount1           [32]byte
+  , RLPBigNumber $ tx.fee                                               -- Fee               [32]byte
+  ]
+
+makeConfirmSignaturesRLP :: Array Base64String -> RLPObject
+makeConfirmSignaturesRLP signatures =
+  RLPArray $ (\(Base64String bs) -> RLPByteString bs) <$> signatures
 
 --------------------------------------------------------------------------------
 
@@ -309,3 +381,6 @@ genericEncoder =
     unsafeFromRight ea = case ea of
       Right a -> a
       Left e -> unsafeCrashWith ("unsafeFromRight Invalid Json encoding: " <> e)
+
+zeroAddress :: Address
+zeroAddress = unsafeFromJust "Must be valid Address 000..." $ mkAddress =<< mkHexString "0x0000000000000000000000000000000000000000"

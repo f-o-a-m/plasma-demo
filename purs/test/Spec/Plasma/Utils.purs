@@ -74,3 +74,6 @@ unsafeFromJust :: forall a. String -> Maybe a -> a
 unsafeFromJust msg = case _ of
   Nothing -> unsafeCrashWith $ "unsafeFromJust: " <> msg
   Just a -> a
+
+defaultPassword :: String
+defaultPassword = "password123"

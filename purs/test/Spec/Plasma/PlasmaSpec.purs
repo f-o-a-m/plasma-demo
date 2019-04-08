@@ -12,17 +12,20 @@ import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
+import Network.Ethereum.Core.HexString (fromByteString)
+import Network.Ethereum.Core.RLP (rlpEncode)
 import Network.Ethereum.Web3 (Address, BlockNumber(..), Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
+import Network.Ethereum.Web3.Api (personal_sign)
 import Network.Ethereum.Web3.Solidity.Sizes (S256)
 import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), PostSpendBody(..), Transaction(..), UTXO(..), defaultPosition, emptyBase64String)
+import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), PostSpendBody(..), Transaction(..), UTXO(..), defaultPosition, emptyBase64String, emptyInput, emptyOutput, makeTransactionRLP)
 import Servant.Api.Types (Captures(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
-import Spec.Plasma.Utils (takeEventOrFail, unsafeMkUInt256, waitForBlock)
+import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlock)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
 import Type.Proxy (Proxy(..))
@@ -77,14 +80,13 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
         Right (Tuple (Change change) (PlasmaMVP.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
           txHash <- includeDeposit users.bob cfg ev.depositNonce change.blockNumber
-          -- TODO (sectore) Add signatures !!!
-          let confirmSignatures = []
+          let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
               position = over Position _{ depositNonce = unsafeDepositNonceToInt ev.depositNonce} defaultPosition
-              signature = emptyBase64String
+              emptySignature = emptyBase64String
               spendAmount = embed 15000
               input0 = Input
                 { position
-                , signature
+                , signature: emptySignature
                 , confirmSignatures
                 }
               output0 = Output
@@ -93,11 +95,14 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 }
               transaction = Transaction
                 { input0
-                , input1: Nothing
+                , input1: emptyInput
                 , output0
-                , output1: Nothing
+                , output1: emptyOutput
                 , fee: embed 1000
                 }
+              transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
+          signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
+              -- TODO (sectore) Set signature to transaction before doing a POST request !!!
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend $ PostSpendBody {sync: false, transaction}
           -- TODO (sectore) Check Alice account to see `spendAmount` was sent to her account
