@@ -46,9 +46,11 @@ install:
   - make compile-contracts
   - make deploy-contracts
 
-  # build app
-  - make build-purs
-
   # install plasma
   - plasmad init
+  - make prepare-plasma
   - plasmad start &
+  - plasmacli rest-server
+
+  # test plasma
+  - make test-plasma
