@@ -3,7 +3,7 @@ module Spec.Plasma.PlasmaSpec (plasmaSpec) where
 import Prelude
 
 import Chanterelle.Test (assertWeb3)
-import Contracts.PlasmaMVP as PlasmaMVP
+import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Data.Array (filter, head)
 import Data.Either (Either(..))
 import Data.Lens ((?~))
