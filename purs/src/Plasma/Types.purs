@@ -61,6 +61,9 @@ instance decodeBase64String :: Decode Base64String where
 instance encodeBase64String :: Encode Base64String where
   encode = encode <<< flip BS.toString BS.Base64 <<< un Base64String
 
+emptyBase64String :: Base64String
+emptyBase64String = Base64String BS.empty
+
 --------------------------------------------------------------------------------
 
 newtype IntString = IntString BigNumber
@@ -100,6 +103,9 @@ instance showPosition :: Show Position where
 instance eqPosition :: Eq Position where
   eq = genericEq
 
+instance encodePosition :: Encode Position where
+  encode = genericEncode plasmaOptions
+
 instance encodeQueryParamPosition :: EncodeQueryParam Position where
   encodeQueryParam (Position p) =
     let indexes = map show [ p.blockNumber
@@ -109,22 +115,30 @@ instance encodeQueryParamPosition :: EncodeQueryParam Position where
                            ]
     in "(" <> joinWith "." indexes <> ")"
 
+defaultPosition :: Position
+defaultPosition = Position
+  { blockNumber: 0
+  , transactionIndex: 0
+  , outputIndex: 0
+  , depositNonce: 0
+  }
+
 --------------------------------------------------------------------------------
 
-newtype Transaction =
-  Transaction { hash :: Base64String
-              , height :: IntString
-              , index :: Int
-              , tx :: Base64String
-              , proof :: Proof
-              }
+newtype TendermintTransaction =
+  TendermintTransaction { hash :: Base64String
+                        , height :: IntString
+                        , index :: Int
+                        , tx :: Base64String
+                        , proof :: Proof
+                        }
 
-instance showGetTransaction :: Show Transaction where
+instance showGetTendermintTransaction :: Show TendermintTransaction where
   show = genericShow
 
-derive instance genericTransaction :: Generic Transaction _
-derive instance newtypeTransaction :: Newtype Transaction _
-instance decodeTransaction :: Decode Transaction where
+derive instance genericTendermintTransaction :: Generic TendermintTransaction _
+derive instance newtypeTendermintTransaction :: Newtype TendermintTransaction _
+instance decodeTendermintTransaction :: Decode TendermintTransaction where
   decode = genericDecode plasmaOptions
 
 --------------------------------------------------------------------------------
@@ -153,7 +167,6 @@ newtype GetProofResp =
   GetProofResp { transaction :: Transaction
                , proof :: Maybe Base64String
                }
-
 
 derive instance genericGetProofResp :: Generic GetProofResp _
 derive instance newtypeGetProofResp :: Newtype GetProofResp _
@@ -187,6 +200,64 @@ instance decodeUTXO :: Decode UTXO where
 
 --------------------------------------------------------------------------------
 
+newtype Input =
+  Input { position :: Position
+        , signature :: Base64String
+        , confirmSignatures :: Array Base64String
+        }
+
+derive instance genericInput :: Generic Input _
+
+instance showInput :: Show Input where
+  show = genericShow
+
+instance decodeInput :: Decode Input where
+  decode = genericDecode plasmaOptions
+
+instance encodeInput :: Encode Input where
+  encode = genericEncode plasmaOptions
+
+--------------------------------------------------------------------------------
+
+newtype Output =
+  Output { owner :: Address
+         , amount :: BigNumber
+         }
+
+derive instance genericOutput :: Generic Output _
+
+instance showOutput :: Show Output where
+  show = genericShow
+
+instance decodeOutput :: Decode Output where
+  decode = genericDecode plasmaOptions
+
+instance encodeOutput :: Encode Output where
+  encode = genericEncode plasmaOptions
+
+--------------------------------------------------------------------------------
+
+newtype Transaction =
+  Transaction { input0 :: Input
+              , input1 :: Maybe Input
+              , output0 :: Output
+              , output1 :: Maybe Output
+              , fee :: BigNumber
+              }
+
+derive instance genericTransaction :: Generic Transaction _
+
+instance showTransaction :: Show Transaction where
+  show = genericShow
+
+instance decodeTransaction :: Decode Transaction where
+  decode = genericDecode plasmaOptions
+
+instance encodeTransaction :: Encode Transaction where
+  encode = genericEncode plasmaOptions
+
+--------------------------------------------------------------------------------
+
 newtype PostDepositBody =
   PostDepositBody { ownerAddress :: EthAddress
                   , depositNonce :: String
@@ -201,8 +272,7 @@ instance encodePostDepositBody :: Encode PostDepositBody where
 
 newtype PostSpendBody =
   PostSpendBody { sync :: Boolean
-                -- TODO (sectore): Define `Transaction` type
-                -- , transaction :: Transaction 
+                , transaction :: Transaction
                 }
 
 derive instance genericPostSpendBody :: Generic PostSpendBody _
@@ -210,12 +280,7 @@ derive instance genericPostSpendBody :: Generic PostSpendBody _
 instance encodePostSpendBody :: Encode PostSpendBody where
   encode = genericEncode plasmaOptions
 
-
 --------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
-
-
 
 fEither :: F ~> Either String
 fEither = runExcept <<<  withExcept show
