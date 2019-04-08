@@ -3,7 +3,6 @@ module Spec.Plasma.PlasmaSpec (plasmaSpec) where
 import Prelude
 
 import Chanterelle.Test (assertWeb3)
-import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Data.Array (filter, head)
 import Data.Either (Either(..))
 import Data.Lens ((?~))
@@ -13,10 +12,11 @@ import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
-import Network.Ethereum.Web3 (Address, BlockNumber(..), Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
+import Network.Ethereum.Web3 (Address, BlockNumber(..), Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
 import Network.Ethereum.Web3.Solidity.Sizes (S256)
 import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
+import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
 import Plasma.Types (EthAddress(..), Position(..), PostDepositBody(..), UTXO(..))
 import Servant.Api.Types (Captures(..))
@@ -51,8 +51,8 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
       C.log $ "plasmaAddress: " <> show plasmaAddress
       let depositAmount = embed 1000
           depositEth = mkValue depositAmount :: Value Wei
-      deposit users.bob cfg (mkValue depositAmount :: Value Wei) >>= case _ of
-        Left txHash -> fail ("Failed to submit deposit: " <> show txHash)
+      deposit users.bob cfg depositEth >>= case _ of
+        Left txHash -> fail ("Failed to submit deposit XX: " <> show txHash)
         Right (Tuple (Change change) (PlasmaMVP.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
           ev.depositor `shouldEqual` users.bob
@@ -96,11 +96,12 @@ deposit
   -> Aff (Either HexString (Tuple Change PlasmaMVP.Deposit))
 deposit user {plasmaAddress, provider} amount = do
   let txOpts = defaultPlasmaTxOptions # _from ?~ user
+                                      # _to ?~ plasmaAddress
                                       # _value ?~ amount
-  C.log "Submitting deposit to root chain contract..."
-  assertWeb3 provider <<< takeEventOrFail (Proxy :: Proxy PlasmaMVP.Deposit) provider plasmaAddress $
-    PlasmaMVP.deposit txOpts { owner: user
-                             }
+  C.log $ "Submitting deposit of " <> show amount <> " from " <> show user <> " to root chain contract"
+  assertWeb3 provider $ takeEventOrFail (Proxy :: Proxy PlasmaMVP.Deposit) provider plasmaAddress $ 
+              PlasmaMVP.deposit txOpts { owner: user
+                                       }
 
 -- | Includes deposit of an user (address) into the side-chain
 includeDeposit 
