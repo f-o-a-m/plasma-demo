@@ -160,14 +160,14 @@ testGetUTXO = launchAff_ do
 
 type PostSpend =
      S "spend"
-  :> POST PT.PostSpendBody String
+  :> POST PT.Transaction String
 
 postSpend
   :: forall m.
      MonadAsk ClientEnv m
   => MonadError AjaxError m
   => MonadAff m
-  => PT.PostSpendBody
+  => PT.Transaction
   -> m String
 postSpend body =
   buildPostRequest (RouteProxy :: RouteProxy PostSpend) noCaptures body noQueryParams

@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 export
-FINALIZED_PERIOD ?= 18
+FINALIZED_PERIOD ?= 3
 NODE_URL ?= http://localhost:8545
 
 # plasma config vars, need to supply operator private key

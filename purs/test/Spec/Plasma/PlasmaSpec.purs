@@ -22,7 +22,7 @@ import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (Base64String(..), EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), PostSpendBody(..), Transaction(..), UTXO(..), emptyBase64String, emptyInput, emptyOutput, inputSignature, makeTransactionRLP, nullPosition, positionDepositNonce, transactionInput0)
+import Plasma.Types (Base64String(..), EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyBase64String, emptyInput, emptyOutput, inputSignature, makeTransactionRLP, nullPosition, positionDepositNonce, transactionInput0)
 import Servant.Api.Types (Captures(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
@@ -85,7 +85,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           txHash <- includeDeposit users.bob cfg ev.depositNonce
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
-          let confirmSignatures = [Nothing] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
+          let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
               position = L.set positionDepositNonce (unsafeDepositNonceToInt ev.depositNonce) nullPosition
               spendAmount = 15000
               input0 = Input
@@ -111,7 +111,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           -- Set signature to transaction before doing a POST request
           let transaction' = L.set (transactionInput0 <<< inputSignature) signatureBS transaction
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
-          _ <- assertRequest clientEnv $ Routes.postSpend $ PostSpendBody {sync: false, transaction: transaction'}
+          _ <- assertRequest clientEnv $ Routes.postSpend $ transaction'
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
           -- TODO (sectore) Check Alice balance to see `spendAmount` was sent to her

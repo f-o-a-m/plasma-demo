@@ -5,6 +5,7 @@ import Prelude
 import Control.Monad.Except (runExcept, withExcept)
 import Data.Argonaut (jsonParser)
 import Data.Argonaut as A
+import Data.Array (replicate)
 import Data.ByteString as BS
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
@@ -28,6 +29,8 @@ import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
 import Servant.Api.Types (class EncodeQueryParam, class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
+import Type.Quotient (mkQuotient)
+
 
 newtype EthAddress = EthAddress Address
 derive instance genericEthAddress :: Generic EthAddress _
@@ -220,7 +223,7 @@ instance decodeUTXO :: Decode UTXO where
 newtype Input =
   Input { position :: Position
         , signature :: Base64String
-        , confirmSignatures :: Array (Maybe Base64String)
+        , confirmSignatures :: Array Base64String
         }
 
 derive instance newtypeInput :: Newtype Input _
@@ -238,8 +241,8 @@ instance encodeInput :: Encode Input where
 emptyInput :: Input
 emptyInput = Input
   { position: nullPosition
-  , signature: emptyBase64String
-  , confirmSignatures: [Nothing]
+  , signature: Base64String $ BS.pack $ replicate 65 (mkQuotient 0)
+  , confirmSignatures: []
   }
 
 inputPosition :: Lens' Input Position
@@ -248,7 +251,7 @@ inputPosition = _Newtype <<< LR.prop (SProxy :: SProxy "position")
 inputSignature :: Lens' Input Base64String
 inputSignature = _Newtype <<< LR.prop (SProxy :: SProxy "signature")
 
-inputConfirmSignatures :: Lens' Input (Array (Maybe Base64String))
+inputConfirmSignatures :: Lens' Input (Array Base64String)
 inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatures")
 
 --------------------------------------------------------------------------------
@@ -329,12 +332,8 @@ makeTransactionRLP (Transaction tx) = RLPArray
   , RLPInt $ tx.fee                                                     -- Fee               [32]byte
   ]
 
-makeConfirmSignaturesRLP :: Array (Maybe Base64String) -> RLPObject
-makeConfirmSignaturesRLP signatures =
-  let object = case _ of
-                  Just (Base64String bs) -> RLPByteString bs
-                  Nothing -> RLPByteString $ BS.empty
-  in RLPArray $ object <$> signatures
+makeConfirmSignaturesRLP :: Array Base64String -> RLPObject
+makeConfirmSignaturesRLP signatures = RLPArray $ RLPByteString <<< un Base64String <$> signatures
 
 
 --------------------------------------------------------------------------------
@@ -347,18 +346,6 @@ newtype PostDepositBody =
 derive instance genericPostDepositBody :: Generic PostDepositBody _
 
 instance encodePostDepositBody :: Encode PostDepositBody where
-  encode = genericEncode plasmaOptions
-
---------------------------------------------------------------------------------
-
-newtype PostSpendBody =
-  PostSpendBody { sync :: Boolean
-                , transaction :: Transaction
-                }
-
-derive instance genericPostSpendBody :: Generic PostSpendBody _
-
-instance encodePostSpendBody :: Encode PostSpendBody where
   encode = genericEncode plasmaOptions
 
 --------------------------------------------------------------------------------
