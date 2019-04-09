@@ -76,7 +76,7 @@ instance tomlValueInt :: TomlValue Int where
   toTomlValue = show >>> withQuotes
 
 instance tomlValueString :: TomlValue String where
-  toTomlValue = identity >>> withQuotes
+  toTomlValue = show
 
 instance tomlValueTimeInterval :: TomlValue TimeInterval where
   toTomlValue (TimeInterval n) = withQuotes $ show n <> "s"
@@ -91,7 +91,7 @@ instance tomlValueBool :: TomlValue Boolean where
   toTomlValue = show >>> withQuotes
 
 instance tomlValueMaybe :: TomlValue a => TomlValue (Maybe a) where
-  toTomlValue = maybe (withQuotes mempty) toTomlValue
+  toTomlValue = maybe (toTomlValue "") toTomlValue
 
 type PlasmaConfig =
   { is_operator :: Boolean
@@ -123,16 +123,14 @@ templateTomlFile = joinWith "\n" <<< map (\(Tuple k v) -> k <> " = " <> v) <<< t
 -- | read a bunch env vars and dynamically try to figure out where the plasma contract address is coming from.
 makeConfigFromEnvironment :: Aff PlasmaConfig
 makeConfigFromEnvironment = do
-  isOperator <- requireEnvVarBool "IS_OPERATOR"
+  isOperator <- requireEnvVar "IS_OPERATOR" asBoolean
   operatorKey <- if isOperator
-       then do
-         privateKey <- requireEnvVar "OPERATOR_PRIVATE_KEY" >>= readVarWith (\key -> note ("InvalidPrivateKey " <> key) (mkHexString key >>= mkPrivateKey))
-         pure $ Just privateKey
+       then Just <$> requireEnvVar "OPERATOR_PRIVATE_KEY" asPrivateKey
        else pure Nothing
+  commitmentRate <- requireEnvVar "COMMITMENT_RATE" asInt
+  nodeURL <- requireEnvVar "NODE_URL" asString
+  finality <- requireEnvVar "FINALIZED_PERIOD" asInt
   plasmaAddress <- discoverPlasmaContractAddress
-  commitmentRate <- requireEnvVar "COMMITMENT_RATE" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
-  nodeURL <- requireEnvVar "NODE_URL"
-  finality <- requireEnvVar "FINALIZED_PERIOD" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
   pure { is_operator: isOperator
        , ethereum_operator_privatekey: operatorKey
        , ethereum_plasma_contract_address: plasmaAddress
@@ -144,7 +142,7 @@ makeConfigFromEnvironment = do
 -- | write the plasma config to a file.
 writePlasmaConfig :: PlasmaConfig -> Aff Unit
 writePlasmaConfig cfg = do
-  configDest <- requireEnvVar "PLASMA_CONFIG_DESTINATION"
+  configDest <- requireEnvVar "PLASMA_CONFIG_DESTINATION" asString
   let content = templateTomlFile cfg
   C.log ("Writing plasma config to " <> configDest)
   writeTextFile UTF8 configDest content
@@ -164,8 +162,8 @@ discoverPlasmaContractAddress = do
   case mAddr of
     Nothing -> do
       C.log "PLASMA_ADDRESS env var not found, trying to read from file..."
-      fp <- requireEnvVar "PLASMA_ARTIFACT"
-      provider <- requireEnvVar "NODE_URL" >>= liftEffect <<< httpProvider
+      fp <- requireEnvVar "PLASMA_ARTIFACT" asString
+      provider <- requireEnvVar "NODE_URL" asString >>= liftEffect <<< httpProvider
       getPlasmaContractAddress (FromChanterelleArtifactFile provider fp)
     Just addr -> case mkHexString addr >>= mkAddress of
       Nothing -> liftEffect $ throw ("Error parsing PLASMA_ADDRESS: " <> show addr)
@@ -189,26 +187,33 @@ getPlasmaContractAddress (FromChanterelleArtifactFile provider filepath) = do
         Right res -> pure res
 
 
-requireEnvVar :: forall m. MonadEffect m => String -> m String
-requireEnvVar var = liftEffect $ do
+type FromStringReader a = String -> Either String a
+
+requireEnvVar :: forall m a. MonadEffect m => String -> FromStringReader a -> m a
+requireEnvVar var parse = liftEffect $ do
   mval <- NP.lookupEnv var
   case mval of
-    Nothing -> unsafeCrashWith ("Must specify " <> var <> " env var")
-    Just val -> pure val
+    Nothing -> unsafeCrashWith $ "Must specify " <> show var <> " env var"
+    Just val -> case parse val of
+      Left err -> unsafeCrashWith
+        $ "Failed to parse env var: " <> show var
+        <> ", containing: " <> show val
+        <> ", with error: " <> err
+      Right a -> pure a
 
-requireEnvVarBool :: forall m. MonadEffect m => String -> m Boolean
-requireEnvVarBool var = liftEffect $ do
-  mval <- NP.lookupEnv var
-  case mval of
-    Nothing -> unsafeCrashWith ("Must specify " <> var <> " env var")
-    Just val ->
-      if val == "true"
-        then pure true
-        else if val == "false"
-                then pure false
-                else unsafeCrashWith ("Invalid Boolean env var " <> val)
+asBoolean :: FromStringReader Boolean
+asBoolean "true" = Right true
+asBoolean "false" = Right false
+asBoolean _ = Left "Invalid Boolean"
 
-readVarWith :: forall a m . MonadEffect m => (String -> Either String a) -> String -> m a
-readVarWith parser val = liftEffect $ case parser val of
-  Left e -> throw $ "Error reading env var: " <> e
-  Right a -> pure a
+asInt :: FromStringReader Int
+asInt = fromString >>> note "invalid Int"
+
+asString :: FromStringReader String
+asString = pure
+
+asPrivateKey :: FromStringReader PrivateKey
+asPrivateKey = (mkHexString >=> mkPrivateKey) >>> note "invalid PrivateKey"
+
+asAddress :: FromStringReader Address
+asAddress = (mkHexString >=> mkAddress) >>> note "invalid Address"
