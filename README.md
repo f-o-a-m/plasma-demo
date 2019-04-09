@@ -14,8 +14,11 @@ We now provide a super simple way to run the test-suite. It only depends on dock
 
 ```
 > make install
-> docker-compose up -d
+> docker-compose up -d cliquebait
+> make deploy-contracts
+> make write-plasma-toml
 > sleep 5
+> docker-compose up -d plasma
 > make deploy-and-test
 > docker-compose down
 ```
@@ -107,6 +110,9 @@ I[2046-04-02|14:05:54.388] binding to contract address 0xe545eaf693277ead76f5d9b
 ...
 
 ```
+
+## Generating a plasma.toml config file
+You can generate a plasma.toml config file by running `make write-plasma-toml`. If you would like to create a config for an `Operator`, set `IS_OPERATOR=true OPERATOR_PRIVATE_KEY=<whatever-it-is> make write-plasma-toml`.
 
 ## WARNINGS
 We are still trying to figure out how to automate config/setup so that it's the same everywhere (test config vs $HOME/.plasmad/config/plasma.toml etc). Until that's done, you should check this warnings list/ update it with new warnings when you find them.
