@@ -22,7 +22,7 @@ import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (Base64String(..), EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyBase64String, emptyInput, emptyOutput, inputSignature, makeTransactionRLP, nullPosition, positionDepositNonce, transactionInput0)
+import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, makeTransactionRLP, nullPosition, positionDepositNonce, transactionInput0, zeroSignature, signatureFromByteString, removeEthereumSignatureShift)
 import Servant.Api.Types (Captures(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
@@ -90,7 +90,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
               spendAmount = 15000
               input0 = Input
                 { position
-                , signature: emptyBase64String -- leave it empty for now, it will be set after signing tx
+                , signature: zeroSignature
                 , confirmSignatures
                 }
               output0 = Output
@@ -107,9 +107,9 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
               transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
           C.log $ "Sign transaction hash: " <> show transactionHash
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
-          let signatureBS = Base64String $ toByteString signatureHex
+          let signature = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
           -- Set signature to transaction before doing a POST request
-          let transaction' = L.set (transactionInput0 <<< inputSignature) signatureBS transaction
+          let transaction' = L.set (transactionInput0 <<< inputSignature) signature transaction
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend $ transaction'
           assertWeb3 provider $ waitForBlocks finalizedPeriod

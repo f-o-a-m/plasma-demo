@@ -5,7 +5,6 @@ import Prelude
 import Control.Monad.Except (runExcept, withExcept)
 import Data.Argonaut (jsonParser)
 import Data.Argonaut as A
-import Data.Array (replicate)
 import Data.ByteString as BS
 import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
@@ -14,7 +13,7 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Lens (Lens', (^.))
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record as LR
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromJust)
 import Data.Newtype (class Newtype, un)
 import Data.String (joinWith)
 import Data.Symbol (SProxy(..))
@@ -23,13 +22,16 @@ import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
 import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
+import Network.Ethereum.Core.HexString (fromByteString, toByteString, nullWord)
 import Network.Ethereum.Core.RLP (RLPObject(..))
+import Network.Ethereum.Core.Signatures as Sig
 import Network.Ethereum.Web3 (Address, BigNumber, mkAddress, mkHexString)
 import Network.HTTP.Affjax.Request as Request
-import Partial.Unsafe (unsafeCrashWith)
+import Node.Buffer.Unsafe (slice)
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Servant.Api.Types (class EncodeQueryParam, class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
-import Type.Quotient (mkQuotient)
+import Type.Quotient (mkQuotient, runQuotient)
 
 
 newtype EthAddress = EthAddress Address
@@ -222,8 +224,8 @@ instance decodeUTXO :: Decode UTXO where
 
 newtype Input =
   Input { position :: Position
-        , signature :: Base64String
-        , confirmSignatures :: Array Base64String
+        , signature :: EthSignature
+        , confirmSignatures :: Array EthSignature
         }
 
 derive instance newtypeInput :: Newtype Input _
@@ -241,17 +243,17 @@ instance encodeInput :: Encode Input where
 emptyInput :: Input
 emptyInput = Input
   { position: nullPosition
-  , signature: Base64String $ BS.pack $ replicate 65 (mkQuotient 0)
+  , signature: zeroSignature
   , confirmSignatures: []
   }
 
 inputPosition :: Lens' Input Position
 inputPosition = _Newtype <<< LR.prop (SProxy :: SProxy "position")
 
-inputSignature :: Lens' Input Base64String
+inputSignature :: Lens' Input EthSignature
 inputSignature = _Newtype <<< LR.prop (SProxy :: SProxy "signature")
 
-inputConfirmSignatures :: Lens' Input (Array Base64String)
+inputConfirmSignatures :: Lens' Input (Array EthSignature)
 inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatures")
 
 --------------------------------------------------------------------------------
@@ -332,8 +334,8 @@ makeTransactionRLP (Transaction tx) = RLPArray
   , RLPInt $ tx.fee                                                     -- Fee               [32]byte
   ]
 
-makeConfirmSignaturesRLP :: Array Base64String -> RLPObject
-makeConfirmSignaturesRLP signatures = RLPArray $ RLPByteString <<< un Base64String <$> signatures
+makeConfirmSignaturesRLP :: Array EthSignature -> RLPObject
+makeConfirmSignaturesRLP signatures = RLPArray $ RLPByteString <<< signatureToByteString <$> signatures
 
 
 --------------------------------------------------------------------------------
@@ -347,6 +349,43 @@ derive instance genericPostDepositBody :: Generic PostDepositBody _
 
 instance encodePostDepositBody :: Encode PostDepositBody where
   encode = genericEncode plasmaOptions
+
+--------------------------------------------------------------------------------
+-- Signature utils
+--------------------------------------------------------------------------------
+
+newtype EthSignature = EthSignature Sig.Signature
+
+derive instance eqEthSignature :: Eq EthSignature
+instance showEthSignature :: Show EthSignature where
+  show (EthSignature sig) = show sig
+
+instance encodeEthSignature :: Encode EthSignature where
+  encode = encode <<< Base64String <<< signatureToByteString
+
+zeroSignature :: EthSignature
+zeroSignature = EthSignature $ Sig.Signature {r: nullWord, s: nullWord, v: 0}
+
+signatureToByteString :: EthSignature -> BS.ByteString
+signatureToByteString (EthSignature (Sig.Signature sig)) =
+   toByteString sig.r <> toByteString sig.s <> BS.singleton (mkQuotient sig.v)
+
+signatureFromByteString :: BS.ByteString -> EthSignature
+signatureFromByteString bs =
+  let bfr = BS.unsafeThaw bs
+      r = fromByteString $ BS.unsafeFreeze $ slice 0 32 bfr
+      s = fromByteString $ BS.unsafeFreeze $ slice 32 64 bfr
+      v = runQuotient $ unsafePartial fromJust $ BS.last bs
+  in EthSignature $ Sig.Signature {r,s,v}
+
+instance decodeEthSignature :: Decode EthSignature where
+  decode x = signatureFromByteString <<< un Base64String <$> decode x
+
+removeEthereumSignatureShift :: EthSignature -> EthSignature
+removeEthereumSignatureShift (EthSignature (Sig.Signature sig)) = EthSignature $ Sig.Signature sig {v = sig.v - 27}
+
+addEthereumSignatureShift :: EthSignature -> EthSignature
+addEthereumSignatureShift (EthSignature (Sig.Signature sig)) = EthSignature $ Sig.Signature sig {v = sig.v + 27}
 
 --------------------------------------------------------------------------------
 
