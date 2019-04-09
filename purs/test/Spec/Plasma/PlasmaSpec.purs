@@ -6,26 +6,27 @@ import Chanterelle.Test (assertWeb3)
 import Data.Array (filter, head)
 import Data.Either (Either(..))
 import Data.Lens ((?~))
+import Data.Lens as L
 import Data.Maybe (Maybe(..), isJust)
-import Data.Newtype (over, over2, un)
+import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
-import Network.Ethereum.Core.HexString (fromByteString)
+import Network.Ethereum.Core.HexString (fromByteString, toByteString)
 import Network.Ethereum.Core.RLP (rlpEncode)
-import Network.Ethereum.Web3 (Address, BlockNumber(..), Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
+import Network.Ethereum.Web3 (Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
 import Network.Ethereum.Web3.Api (personal_sign)
 import Network.Ethereum.Web3.Solidity.Sizes (S256)
 import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), PostSpendBody(..), Transaction(..), UTXO(..), defaultPosition, emptyBase64String, emptyInput, emptyOutput, makeTransactionRLP)
+import Plasma.Types (Base64String(..), EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), PostSpendBody(..), Transaction(..), UTXO(..), emptyBase64String, emptyInput, emptyOutput, inputSignature, makeTransactionRLP, nullPosition, positionDepositNonce, transactionInput0)
 import Servant.Api.Types (Captures(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
-import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlock)
+import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
 import Type.Proxy (Proxy(..))
@@ -60,10 +61,10 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
           ev.depositor `shouldEqual` users.bob
           ev.amount `shouldEqual` unsafeMkUInt256 depositAmount
-          txHash <- includeDeposit users.bob cfg ev.depositNonce change.blockNumber
-          bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob
-                                                                                    }
-                                                                  )
+          assertWeb3 provider $ waitForBlocks finalizedPeriod
+
+          txHash <- includeDeposit users.bob cfg ev.depositNonce
+          bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
           let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
                 (un Position u.position).depositNonce == unsafeDepositNonceToInt ev.depositNonce
           utxo `shouldSatisfy` isJust
@@ -79,14 +80,17 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
         Left txHash -> fail ("Failed to submit deposit: " <> show txHash)
         Right (Tuple (Change change) (PlasmaMVP.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
-          txHash <- includeDeposit users.bob cfg ev.depositNonce change.blockNumber
-          let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
-              position = over Position _{ depositNonce = unsafeDepositNonceToInt ev.depositNonce} defaultPosition
-              emptySignature = emptyBase64String
-              spendAmount = embed 15000
+          assertWeb3 provider $ waitForBlocks finalizedPeriod
+
+          txHash <- includeDeposit users.bob cfg ev.depositNonce
+          assertWeb3 provider $ waitForBlocks finalizedPeriod
+
+          let confirmSignatures = mempty -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
+              position = L.set positionDepositNonce (unsafeDepositNonceToInt ev.depositNonce) nullPosition
+              spendAmount = 15000
               input0 = Input
                 { position
-                , signature: emptySignature
+                , signature: emptyBase64String -- leave it empty for now, it will be set after signing tx
                 , confirmSignatures
                 }
               output0 = Output
@@ -98,14 +102,19 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , input1: emptyInput
                 , output0
                 , output1: emptyOutput
-                , fee: embed 1000
+                , fee: zero
                 }
               transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
+          C.log $ "Sign transaction hash: " <> show transactionHash
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
-              -- TODO (sectore) Set signature to transaction before doing a POST request !!!
+          let signatureBS = Base64String $ toByteString signatureHex
+          -- Set signature to transaction before doing a POST request
+          let transaction' = L.set (transactionInput0 <<< inputSignature) signatureBS transaction
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
-          _ <- assertRequest clientEnv $ Routes.postSpend $ PostSpendBody {sync: false, transaction}
-          -- TODO (sectore) Check Alice account to see `spendAmount` was sent to her account
+          _ <- assertRequest clientEnv $ Routes.postSpend $ PostSpendBody {sync: false, transaction: transaction'}
+          assertWeb3 provider $ waitForBlocks finalizedPeriod
+
+          -- TODO (sectore) Check Alice balance to see `spendAmount` was sent to her
           "not" `shouldEqual` "ready"
 
 
@@ -135,14 +144,11 @@ includeDeposit
   :: Address
   -> PlasmaSpecConfig
   -> UIntN S256
-  -> BlockNumber
   -> Aff String
-includeDeposit user {provider, finalizedPeriod, clientEnv} depositNonce blockNumber = do
+includeDeposit user {provider, clientEnv} depositNonce = do
   let depositNonceInt = unsafeDepositNonceToInt depositNonce
       depositBody = PostDepositBody { ownerAddress: EthAddress user
                                     , depositNonce: show $ unsafeDepositNonceToInt depositNonce
                                     }
-      depositFinalizedBlock = over2 BlockNumber (+) blockNumber finalizedPeriod
-  assertWeb3 provider $ waitForBlock depositFinalizedBlock
   C.log "Including deposit into side chain..."
   assertRequest clientEnv $ Routes.postIncludeDeposit depositBody

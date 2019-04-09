@@ -21,14 +21,13 @@ import Foreign (F, ForeignError(..), fail)
 import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
-import Network.Ethereum.Core.BigNumber (decimal, embed, parseBigNumber, toString)
+import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
 import Network.Ethereum.Core.RLP (RLPObject(..))
 import Network.Ethereum.Web3 (Address, BigNumber, mkAddress, mkHexString)
 import Network.HTTP.Affjax.Request as Request
 import Partial.Unsafe (unsafeCrashWith)
 import Servant.Api.Types (class EncodeQueryParam, class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
-import Spec.Plasma.Utils (unsafeFromJust)
 
 newtype EthAddress = EthAddress Address
 derive instance genericEthAddress :: Generic EthAddress _
@@ -121,8 +120,8 @@ instance encodeQueryParamPosition :: EncodeQueryParam Position where
                            ]
     in "(" <> joinWith "." indexes <> ")"
 
-defaultPosition :: Position
-defaultPosition = Position
+nullPosition :: Position
+nullPosition = Position
   { blockNumber: 0
   , transactionIndex: 0
   , outputIndex: 0
@@ -238,13 +237,16 @@ instance encodeInput :: Encode Input where
 
 emptyInput :: Input
 emptyInput = Input
-  { position: defaultPosition
+  { position: nullPosition
   , signature: emptyBase64String
   , confirmSignatures: mempty
   }
 
 inputPosition :: Lens' Input Position
 inputPosition = _Newtype <<< LR.prop (SProxy :: SProxy "position")
+
+inputSignature :: Lens' Input Base64String
+inputSignature = _Newtype <<< LR.prop (SProxy :: SProxy "signature")
 
 inputConfirmSignatures :: Lens' Input (Array Base64String)
 inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatures")
@@ -253,7 +255,7 @@ inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatur
 
 newtype Output =
   Output { owner :: Address
-         , amount :: BigNumber
+         , amount :: Int -- FIXME(sectore) It should be `BigNumber`, but `Go` deserialization seems to have an issue with it
          }
 
 derive instance newtypeOutput :: Newtype Output _
@@ -271,13 +273,13 @@ instance encodeOutput :: Encode Output where
 emptyOutput :: Output
 emptyOutput = Output
   { owner: zeroAddress
-  , amount: embed 0
+  , amount: 0
   }
 
 outputOwner :: Lens' Output Address
 outputOwner = _Newtype <<< LR.prop (SProxy :: SProxy "owner")
 
-outputAmount :: Lens' Output BigNumber
+outputAmount :: Lens' Output Int
 outputAmount = _Newtype <<< LR.prop (SProxy :: SProxy "amount")
 
 --------------------------------------------------------------------------------
@@ -287,7 +289,7 @@ newtype Transaction =
               , input1 :: Input
               , output0 :: Output
               , output1 :: Output
-              , fee :: BigNumber
+              , fee :: Int -- FIXME(sectore) It should be `BigNumber`, but `Go` deserialization seems to have an issue with it
               }
 
 derive instance newtypeTransaction :: Newtype Transaction _
@@ -305,6 +307,9 @@ instance encodeTransaction :: Encode Transaction where
 transactionInput0 :: Lens' Transaction Input
 transactionInput0 = _Newtype <<< LR.prop (SProxy :: SProxy "input0")
 
+transactionInput1 :: Lens' Transaction Input
+transactionInput1 = _Newtype <<< LR.prop (SProxy :: SProxy "input1")
+
 makeTransactionRLP :: Transaction -> RLPObject
 makeTransactionRLP (Transaction tx) = RLPArray
   [ RLPInt $ tx.input0 ^. (inputPosition <<< positionBlockNumber)       -- BlkNum0           [32]byte
@@ -318,10 +323,10 @@ makeTransactionRLP (Transaction tx) = RLPArray
   , RLPInt $ tx.input1 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce1     [32]byte
   , makeConfirmSignaturesRLP $ tx.input1 ^. inputConfirmSignatures      -- Input1ConfirmSigs [130]byte
   , RLPAddress $ tx.output0 ^. outputOwner                              -- NewOwner0         common.Address
-  , RLPBigNumber $ tx.output0 ^. outputAmount                           -- Amount0           [32]byte
+  , RLPInt $ tx.output0 ^. outputAmount                           -- Amount0           [32]byte
   , RLPAddress $ tx.output1 ^. outputOwner                              -- NewOwner1         common.Address
-  , RLPBigNumber $ tx.output1 ^. outputAmount                           -- Amount1           [32]byte
-  , RLPBigNumber $ tx.fee                                               -- Fee               [32]byte
+  , RLPInt $ tx.output1 ^. outputAmount                           -- Amount1           [32]byte
+  , RLPInt $ tx.fee                                               -- Fee               [32]byte
   ]
 
 makeConfirmSignaturesRLP :: Array Base64String -> RLPObject
@@ -383,4 +388,7 @@ genericEncoder =
       Left e -> unsafeCrashWith ("unsafeFromRight Invalid Json encoding: " <> e)
 
 zeroAddress :: Address
-zeroAddress = unsafeFromJust "Must be valid Address 000..." $ mkAddress =<< mkHexString "0x0000000000000000000000000000000000000000"
+zeroAddress =
+  case mkHexString "0x0000000000000000000000000000000000000000" >>= mkAddress of
+    Nothing -> unsafeCrashWith "Invalid 'zero' address: "
+    Just a -> a
