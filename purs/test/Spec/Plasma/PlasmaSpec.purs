@@ -85,7 +85,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           txHash <- includeDeposit users.bob cfg ev.depositNonce
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
-          let confirmSignatures = mempty -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
+          let confirmSignatures = [Nothing] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
               position = L.set positionDepositNonce (unsafeDepositNonceToInt ev.depositNonce) nullPosition
               spendAmount = 15000
               input0 = Input
@@ -102,7 +102,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , input1: emptyInput
                 , output0
                 , output1: emptyOutput
-                , fee: zero
+                , fee: 0
                 }
               transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
           C.log $ "Sign transaction hash: " <> show transactionHash

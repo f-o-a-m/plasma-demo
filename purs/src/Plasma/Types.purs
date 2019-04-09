@@ -220,7 +220,7 @@ instance decodeUTXO :: Decode UTXO where
 newtype Input =
   Input { position :: Position
         , signature :: Base64String
-        , confirmSignatures :: Array Base64String
+        , confirmSignatures :: Array (Maybe Base64String)
         }
 
 derive instance newtypeInput :: Newtype Input _
@@ -239,7 +239,7 @@ emptyInput :: Input
 emptyInput = Input
   { position: nullPosition
   , signature: emptyBase64String
-  , confirmSignatures: mempty
+  , confirmSignatures: [Nothing]
   }
 
 inputPosition :: Lens' Input Position
@@ -248,7 +248,7 @@ inputPosition = _Newtype <<< LR.prop (SProxy :: SProxy "position")
 inputSignature :: Lens' Input Base64String
 inputSignature = _Newtype <<< LR.prop (SProxy :: SProxy "signature")
 
-inputConfirmSignatures :: Lens' Input (Array Base64String)
+inputConfirmSignatures :: Lens' Input (Array (Maybe Base64String))
 inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatures")
 
 --------------------------------------------------------------------------------
@@ -323,15 +323,19 @@ makeTransactionRLP (Transaction tx) = RLPArray
   , RLPInt $ tx.input1 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce1     [32]byte
   , makeConfirmSignaturesRLP $ tx.input1 ^. inputConfirmSignatures      -- Input1ConfirmSigs [130]byte
   , RLPAddress $ tx.output0 ^. outputOwner                              -- NewOwner0         common.Address
-  , RLPInt $ tx.output0 ^. outputAmount                           -- Amount0           [32]byte
+  , RLPInt $ tx.output0 ^. outputAmount                                 -- Amount0           [32]byte
   , RLPAddress $ tx.output1 ^. outputOwner                              -- NewOwner1         common.Address
-  , RLPInt $ tx.output1 ^. outputAmount                           -- Amount1           [32]byte
-  , RLPInt $ tx.fee                                               -- Fee               [32]byte
+  , RLPInt $ tx.output1 ^. outputAmount                                 -- Amount1           [32]byte
+  , RLPInt $ tx.fee                                                     -- Fee               [32]byte
   ]
 
-makeConfirmSignaturesRLP :: Array Base64String -> RLPObject
+makeConfirmSignaturesRLP :: Array (Maybe Base64String) -> RLPObject
 makeConfirmSignaturesRLP signatures =
-  RLPArray $ (\(Base64String bs) -> RLPByteString bs) <$> signatures
+  let object = case _ of
+                  Just (Base64String bs) -> RLPByteString bs
+                  Nothing -> RLPByteString $ BS.empty
+  in RLPArray $ object <$> signatures
+
 
 --------------------------------------------------------------------------------
 
