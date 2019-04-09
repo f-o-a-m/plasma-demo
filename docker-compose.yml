@@ -8,5 +8,6 @@ services:
     image: docker.kube-system.svc.cluster.local/foam/plasma-mvp-sidechain:latest
     ports:
       - "1317:1317"
+      - "26657:26657"
     volumes:
     - ./plasma.toml:/root/.plasmad/config/plasma.toml

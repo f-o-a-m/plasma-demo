@@ -39,8 +39,8 @@ test-plasma:  ## Run the plasma e2e
 deploy-contracts: compile-contracts ## Deploy contracts with local config from dapp/contracts project
 	NODE_URL=$(NODE_URL) chanterelle deploy ./output/Plasma.Deploy/index.js
 
-deploy-and-test: deploy-contracts
+deploy-and-test: deploy-contracts write-plasma-toml
 	sleep 2
-	docker exec -d -e NODE_URL='"http://cliquebait:8545"' -e PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` plasma-demo_plasma_1 './run.sh'
+	docker exec -d -e NODE_URL='"http://cliquebait:8545"'  plasma-demo_plasma_1 './run.sh'
 	sleep 2
 	NODE_URL="http://localhost:8545" PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` make test-plasma
