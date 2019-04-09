@@ -15,7 +15,7 @@ import Data.Array ((:))
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.Int (fromString)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (joinWith)
 import Data.Symbol (class IsSymbol, SProxy, reflectSymbol)
 import Data.Tuple (Tuple(..))
@@ -90,9 +90,12 @@ instance tomlValueAddress :: TomlValue Address where
 instance tomlValueBool :: TomlValue Boolean where
   toTomlValue = show >>> withQuotes
 
+instance tomlValueMaybe :: TomlValue a => TomlValue (Maybe a) where
+  toTomlValue = maybe (withQuotes mempty) toTomlValue
+
 type PlasmaConfig =
   { is_operator :: Boolean
-  , ethereum_operator_privatekey :: PrivateKey
+  , ethereum_operator_privatekey :: Maybe PrivateKey
   , ethereum_plasma_contract_address :: Address
   , plasma_block_commitment_rate :: TimeInterval
   , ethereum_nodeurl :: String
@@ -121,13 +124,17 @@ templateTomlFile = joinWith "\n" <<< map (\(Tuple k v) -> k <> " = " <> v) <<< t
 makeConfigFromEnvironment :: Aff PlasmaConfig
 makeConfigFromEnvironment = do
   isOperator <- requireEnvVarBool "IS_OPERATOR"
-  privateKey <- requireEnvVar "OPERATOR_PRIVATE_KEY" >>= readVarWith (\key -> note ("InvalidPrivateKey " <> key) (mkHexString key >>= mkPrivateKey))
+  operatorKey <- if isOperator
+       then do
+         privateKey <- requireEnvVar "OPERATOR_PRIVATE_KEY" >>= readVarWith (\key -> note ("InvalidPrivateKey " <> key) (mkHexString key >>= mkPrivateKey))
+         pure $ Just privateKey
+       else pure Nothing
   plasmaAddress <- discoverPlasmaContractAddress
   commitmentRate <- requireEnvVar "COMMITMENT_RATE" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
   nodeURL <- requireEnvVar "NODE_URL"
   finality <- requireEnvVar "FINALIZED_PERIOD" >>= readVarWith (\i -> note ("Invalid Int " <> i) (fromString i))
   pure { is_operator: isOperator
-       , ethereum_operator_privatekey: privateKey
+       , ethereum_operator_privatekey: operatorKey
        , ethereum_plasma_contract_address: plasmaAddress
        , plasma_block_commitment_rate: TimeInterval commitmentRate
        , ethereum_nodeurl: nodeURL

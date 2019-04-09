@@ -5,8 +5,8 @@ FINALIZED_PERIOD ?= 18
 NODE_URL ?= http://localhost:8545
 
 # plasma config vars, need to supply operator private key
-PLASMA_CONFIG_DESTINATION ?= $(HOME)/.plasmad/config/plasma.toml
-IS_OPERATOR ?= true
+PLASMA_CONFIG_DESTINATION ?= ./plasma-config/plasma.toml
+IS_OPERATOR ?= false
 COMMITMENT_RATE ?= 2
 PLASMA_ARTIFACT ?= ./abis/PlasmaMVP.json
 

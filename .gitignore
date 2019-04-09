@@ -8,6 +8,7 @@
 /.purs*
 /.psa*
 /abis/**/*.json
+/plasma-config/plasma.toml
 /purs/src/Plasma/Contracts
 *.swp
 chanterelle.js
