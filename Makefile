@@ -33,10 +33,6 @@ generate-genesis: ## Generate a cliquebait.json file
 write-plasma-toml: ## write the plasma config to the plasma.toml file
 	pulp run --jobs 8 --src-path purs/src -m Plasma.Config.TOMLMain
 
-
-prepare-plasma:
-	sed -i "/ethereum_plasma_contract_address = /c\ethereum_plasma_contract_address = `cat abis/PlasmaMVP.json | jq \".networks[].address\"`" "$(HOME)/.plasmad/config/plasma.toml"
-
 test-plasma:  ## Run the plasma e2e
 	NODE_URL=$(NODE_URL) pulp test --src-path purs/src --test-path purs/test -m Spec.Main
 
