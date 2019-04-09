@@ -61,11 +61,13 @@ waitForBlock
 waitForBlock bn = do
   currentBlock <- eth_blockNumber
   if currentBlock >= bn
-     then pure unit
-     else do
-       liftEffect $ C.log ("Waiting for block " <> show bn <> " (current: " <> show currentBlock <>") ...")
-       liftAff (delay $ Milliseconds 1000.0)
-       waitForBlock bn
+    then do
+      liftEffect $ C.log $ "🔗 Receiving block " <> show currentBlock
+      pure unit
+    else do
+      liftEffect $ C.log ("Waiting for block " <> show bn <> " (current: " <> show currentBlock <>") ...")
+      liftAff (delay $ Milliseconds 1000.0)
+      waitForBlock bn
 
 -- | Wait for number of blocks
 waitForBlocks
