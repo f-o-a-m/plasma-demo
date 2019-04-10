@@ -15,14 +15,15 @@ import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
 import Network.Ethereum.Core.HexString (fromByteString, toByteString)
 import Network.Ethereum.Core.RLP (rlpEncode)
-import Network.Ethereum.Web3 (Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
+import Network.Ethereum.Web3 (class KnownSize, Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
 import Network.Ethereum.Web3.Api (personal_sign)
+import Network.Ethereum.Web3.Solidity.Size (kind DigitList)
 import Network.Ethereum.Web3.Solidity.Sizes (S256)
 import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, makeTransactionRLP, nullPosition, positionDepositNonce, transactionInput0, zeroSignature, signatureFromByteString, removeEthereumSignatureShift)
+import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, makeTransactionRLP, zeroPosition, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroSignature)
 import Servant.Api.Types (Captures(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
@@ -33,7 +34,7 @@ import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
 plasmaSpec cfg = do
-  nodeHealthSpec cfg
+  -- nodeHealthSpec cfg
   -- depositSpec cfg
   spendSpec cfg
 
@@ -66,7 +67,7 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
           txHash <- includeDeposit users.bob cfg ev.depositNonce
           bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
           let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
-                (un Position u.position).depositNonce == unsafeDepositNonceToInt ev.depositNonce
+                (un Position u.position).depositNonce == unsafeUIntNToInt ev.depositNonce
           utxo `shouldSatisfy` isJust
 
 spendSpec :: PlasmaSpecConfig -> Spec Unit
@@ -86,7 +87,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
           let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
-              position = L.set positionDepositNonce (unsafeDepositNonceToInt ev.depositNonce) nullPosition
+              position = L.set positionDepositNonce (unsafeUIntNToInt ev.depositNonce) zeroPosition
               spendAmount = 15000
               input0 = Input
                 { position
@@ -94,7 +95,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , confirmSignatures
                 }
               output0 = Output
-                { owner: bob
+                { owner: alice
                 , amount: spendAmount
                 }
               transaction = Transaction
@@ -102,9 +103,11 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , input1: emptyInput
                 , output0
                 , output1: emptyOutput
-                , fee: 0
+                , fee: 100
                 }
-              transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
+              txH = rlpEncode $ makeTransactionRLP transaction
+              transactionHash = fromByteString txH
+          C.log $ "Sign transaction byte hash: " <> show txH
           C.log $ "Sign transaction hash: " <> show transactionHash
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
           let signature = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
@@ -121,8 +124,8 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
 defaultPlasmaTxOptions :: TransactionOptions NoPay
 defaultPlasmaTxOptions = defaultTransactionOptions # _gas  ?~ embed 8000000
 
-unsafeDepositNonceToInt :: (UIntN S256) -> Int
-unsafeDepositNonceToInt = unsafeToInt <<< unUIntN
+unsafeUIntNToInt :: forall n . KnownSize n => UIntN n -> Int
+unsafeUIntNToInt = unsafeToInt <<< unUIntN
 
 -- | Deposits ETH from an user (address) into root-chain contract
 deposit
@@ -146,9 +149,9 @@ includeDeposit
   -> UIntN S256
   -> Aff String
 includeDeposit user {provider, clientEnv} depositNonce = do
-  let depositNonceInt = unsafeDepositNonceToInt depositNonce
+  let depositNonceInt = unsafeUIntNToInt depositNonce
       depositBody = PostDepositBody { ownerAddress: EthAddress user
-                                    , depositNonce: show $ unsafeDepositNonceToInt depositNonce
+                                    , depositNonce: show $ unsafeUIntNToInt depositNonce
                                     }
   C.log "Including deposit into side chain..."
   assertRequest clientEnv $ Routes.postIncludeDeposit depositBody

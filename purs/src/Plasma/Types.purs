@@ -125,8 +125,8 @@ instance encodeQueryParamPosition :: EncodeQueryParam Position where
                            ]
     in "(" <> joinWith "." indexes <> ")"
 
-nullPosition :: Position
-nullPosition = Position
+zeroPosition :: Position
+zeroPosition = Position
   { blockNumber: 0
   , transactionIndex: 0
   , outputIndex: 0
@@ -242,7 +242,7 @@ instance encodeInput :: Encode Input where
 
 emptyInput :: Input
 emptyInput = Input
-  { position: nullPosition
+  { position: zeroPosition
   , signature: zeroSignature
   , confirmSignatures: []
   }
@@ -336,7 +336,6 @@ makeTransactionRLP (Transaction tx) = RLPArray
 
 makeConfirmSignaturesRLP :: Array EthSignature -> RLPObject
 makeConfirmSignaturesRLP signatures = RLPArray $ RLPByteString <<< signatureToByteString <$> signatures
-
 
 --------------------------------------------------------------------------------
 
