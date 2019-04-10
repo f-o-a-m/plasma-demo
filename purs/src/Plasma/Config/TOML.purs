@@ -3,6 +3,7 @@ module Plasma.Config.TOML
   , TimeInterval
   , writePlasmaConfig
   , makeConfigFromEnvironment
+  , discoverPlasmaContractAddress
   ) where
 
 import Prelude
