@@ -2,6 +2,7 @@ module Plasma.Types where
 
 import Prelude
 
+import Control.Alternative ((<|>))
 import Control.Monad.Except (runExcept, withExcept)
 import Data.Argonaut (jsonParser)
 import Data.Argonaut as A
@@ -38,8 +39,25 @@ newtype EthAddress = EthAddress Address
 derive instance genericEthAddress :: Generic EthAddress _
 derive instance newtypeEthAddress :: Newtype EthAddress _
 
+
+instance showEthAddress :: Show EthAddress where
+  show = genericShow
+
+instance eqEthAddress :: Eq EthAddress where
+  eq = genericEq
+
 instance encodeEthAddress :: Encode EthAddress where
   encode = genericEncode plasmaOptions
+
+instance decodeEthAddress :: Decode EthAddress where
+  decode x =
+    let d1 = EthAddress <$> decode x
+        d2 = do
+          a@(Base64String bs) <- decode x
+          case mkAddress $ fromByteString bs of
+            Nothing ->  fail (ForeignError $ "Failed to parse as EthAddress: " <> show a)
+            Just addr -> pure $ EthAddress addr
+     in d1 <|> d2
 
 instance captureEthAddress :: ToCapture EthAddress where
   toCapture = show <<< un EthAddress
@@ -206,6 +224,7 @@ newtype UTXO =
        , confirmationHash :: Base64String
        , "MerkleHash" :: Base64String
        , spent :: Boolean
+       , output :: Output
        , position :: Position
        }
 
@@ -259,7 +278,7 @@ inputConfirmSignatures = _Newtype <<< LR.prop (SProxy :: SProxy "confirmSignatur
 --------------------------------------------------------------------------------
 
 newtype Output =
-  Output { owner :: Address
+  Output { owner :: EthAddress
          , amount :: Int -- FIXME(sectore) It should be `BigNumber`, but `Go` deserialization seems to have an issue with it
          }
 
@@ -268,6 +287,9 @@ derive instance genericOutput :: Generic Output _
 
 instance showOutput :: Show Output where
   show = genericShow
+
+instance eqOutput :: Eq Output where
+  eq = genericEq
 
 instance decodeOutput :: Decode Output where
   decode = genericDecode plasmaOptions
@@ -281,7 +303,7 @@ emptyOutput = Output
   , amount: 0
   }
 
-outputOwner :: Lens' Output Address
+outputOwner :: Lens' Output EthAddress
 outputOwner = _Newtype <<< LR.prop (SProxy :: SProxy "owner")
 
 outputAmount :: Lens' Output Int
@@ -327,9 +349,9 @@ makeTransactionRLP (Transaction tx) = RLPArray
   , RLPInt $ tx.input1 ^. (inputPosition <<< positionOutputIndex)       -- OIndex1           [32]byte
   , RLPInt $ tx.input1 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce1     [32]byte
   , makeConfirmSignaturesRLP $ tx.input1 ^. inputConfirmSignatures      -- Input1ConfirmSigs [130]byte
-  , RLPAddress $ tx.output0 ^. outputOwner                              -- NewOwner0         common.Address
+  , RLPAddress <<< un EthAddress $ tx.output0 ^. outputOwner                              -- NewOwner0         common.Address
   , RLPInt $ tx.output0 ^. outputAmount                                 -- Amount0           [32]byte
-  , RLPAddress $ tx.output1 ^. outputOwner                              -- NewOwner1         common.Address
+  , RLPAddress <<< un EthAddress $ tx.output1 ^. outputOwner                              -- NewOwner1         common.Address
   , RLPInt $ tx.output1 ^. outputAmount                                 -- Amount1           [32]byte
   , RLPInt $ tx.fee                                                     -- Fee               [32]byte
   ]
@@ -416,8 +438,8 @@ genericEncoder =
       Right a -> a
       Left e -> unsafeCrashWith ("unsafeFromRight Invalid Json encoding: " <> e)
 
-zeroAddress :: Address
-zeroAddress =
+zeroAddress :: EthAddress
+zeroAddress = EthAddress $
   case mkHexString "0x0000000000000000000000000000000000000000" >>= mkAddress of
     Nothing -> unsafeCrashWith "Invalid 'zero' address: "
     Just a -> a

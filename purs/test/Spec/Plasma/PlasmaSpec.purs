@@ -5,14 +5,14 @@ import Prelude
 import Chanterelle.Test (assertWeb3)
 import Data.Array (filter, head)
 import Data.Either (Either(..))
-import Data.Lens ((?~))
-import Data.Lens as L
+import Data.Lens ((?~), (.~))
 import Data.Maybe (Maybe(..), isJust)
 import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
+import Network.Ethereum.Core.Signatures as Sig
 import Network.Ethereum.Core.HexString (fromByteString, toByteString)
 import Network.Ethereum.Core.RLP (rlpEncode)
 import Network.Ethereum.Web3 (class KnownSize, Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
@@ -23,8 +23,8 @@ import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, makeTransactionRLP, zeroPosition, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroSignature)
-import Servant.Api.Types (Captures(..))
+import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, makeTransactionRLP, zeroPosition, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroSignature, EthSignature(..))
+import Servant.Api.Types (Captures(..), QueryParams(..), Required(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
 import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
@@ -86,8 +86,15 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           txHash <- includeDeposit users.bob cfg ev.depositNonce
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
+          C.log ("Test that the UTXO exists on the plasma chain now and is unspent")
+          let position =  zeroPosition # positionDepositNonce .~ unsafeUIntNToInt ev.depositNonce
+          UTXO utxo <- assertRequest clientEnv $ Routes.getUTXO (QueryParams  { ownerAddress : Required $ EthAddress users.bob
+                                                                              , position : Required position
+                                                                              }
+                                                                )
+          utxo.spent `shouldEqual` false
+
           let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
-              position = L.set positionDepositNonce (unsafeUIntNToInt ev.depositNonce) zeroPosition
               spendAmount = 9000
               input0 = Input
                 { position
@@ -95,7 +102,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , confirmSignatures
                 }
               output0 = Output
-                { owner: alice
+                { owner: EthAddress alice
                 , amount: spendAmount
                 }
               transaction = Transaction
@@ -111,9 +118,10 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           C.log $ "PS transaction hash: " <> show (fromByteString $ rlpEncode $ makeTransactionRLP transaction)
           C.log $ "Signing transaction hash ... "
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
-          let signature = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
-          -- Set signature to transaction before doing a POST request
-          let transaction' = L.set (transactionInput0 <<< inputSignature) signature transaction
+          let signature@(EthSignature sig) = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
+          C.log "Performing local ecrecover..."
+          Sig.publicToAddress (Sig.recoverSender (toByteString transactionHash) sig) `shouldEqual` bob
+          let transaction' = transaction # transactionInput0 <<< inputSignature .~ signature
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend transaction'
           assertWeb3 provider $ waitForBlocks finalizedPeriod
