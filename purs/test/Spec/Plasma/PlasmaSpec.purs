@@ -74,7 +74,7 @@ spendSpec :: PlasmaSpecConfig -> Spec Unit
 spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
   describe "Plasma Root Contract" $
     it "can deposit ETH into the rootchain contract, transfer it to the sidechain and spend some ETH to another account" $ do
-      let depositAmountEth = mkValue (embed 20000) :: Value Wei
+      let depositAmountEth = mkValue (embed 10000) :: Value Wei
           bob = users.bob
           alice = users.alice
       deposit bob cfg depositAmountEth >>= case _ of
@@ -88,7 +88,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
 
           let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
               position = L.set positionDepositNonce (unsafeUIntNToInt ev.depositNonce) zeroPosition
-              spendAmount = 15000
+              spendAmount = 9000
               input0 = Input
                 { position
                 , signature: zeroSignature
@@ -103,16 +103,19 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , input1: emptyInput
                 , output0
                 , output1: emptyOutput
-                , fee: 100
+                , fee: 1000
                 }
-              transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
-          C.log $ "Sign transaction hash: " <> show transactionHash
+          C.log $ "Generate tx hash on server-side ... "
+          transactionHash <- assertRequest clientEnv $ Routes.postTxHash transaction
+          C.log $ "Go transaction hash: " <> show transactionHash
+          C.log $ "PS transaction hash: " <> show (fromByteString $ rlpEncode $ makeTransactionRLP transaction)
+          C.log $ "Signing transaction hash ... "
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
           let signature = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
           -- Set signature to transaction before doing a POST request
           let transaction' = L.set (transactionInput0 <<< inputSignature) signature transaction
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
-          _ <- assertRequest clientEnv $ Routes.postSpend $ transaction'
+          _ <- assertRequest clientEnv $ Routes.postSpend transaction'
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
           -- TODO (sectore) Check Alice balance to see `spendAmount` was sent to her

@@ -186,7 +186,7 @@ instance showGetProof :: Show Proof where
 --------------------------------------------------------------------------------
 
 newtype GetProofResp =
-  GetProofResp { transaction :: Transaction
+  GetProofResp { transaction :: TendermintTransaction
                , proof :: Maybe Base64String
                }
 

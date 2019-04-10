@@ -13,6 +13,7 @@ import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as C
 import Network.Ethereum.Web3 (httpProvider)
+import Network.Ethereum.Core.HexString (HexString)
 import Plasma.Types as PT
 import Plasma.Utils (makeConfirmationSignatureWithNode, validateExitLengths)
 import Servant.Api.Types (type (:>), Capture, Captures, GET, POST, QP, QueryParams(..), Required(..), RouteProxy(..), S, noCaptures, noHeaders, noQueryParams)
@@ -116,7 +117,7 @@ testGetProof = launchAff_ do
               , password: Just "password123"
               }
   sig <- assertWeb3 provider $ makeConfirmationSignatureWithNode creds utxo
-  let args = { txBytes: (un PT.Transaction resp.transaction).tx
+  let args = { txBytes: (un PT.TendermintTransaction resp.transaction).tx
              , proof: fromMaybe (wrap mempty) resp.proof
              , confirmationSignatures: [sig]
              }
@@ -141,7 +142,6 @@ getUTXO
                  )
   -> m PT.UTXO
 getUTXO qps = buildGetRequest (RouteProxy :: RouteProxy GetUTXO) noCaptures qps noHeaders PT.genericDecoder
-
 
 testGetUTXO :: Effect Unit
 testGetUTXO = launchAff_ do
@@ -169,6 +169,24 @@ postSpend
   => MonadAff m
   => PT.Transaction
   -> m String
-postSpend body =
-  buildPostRequest (RouteProxy :: RouteProxy PostSpend) noCaptures body noQueryParams
+postSpend tx =
+  buildPostRequest (RouteProxy :: RouteProxy PostSpend) noCaptures tx noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder
+
+--------------------------------------------------------------------------------
+
+type PostTxHash =
+     S "tx"
+  :> S "hash"
+  :> POST PT.Transaction HexString
+
+postTxHash
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => PT.Transaction
+  -> m HexString
+postTxHash tx =
+  buildPostRequest (RouteProxy :: RouteProxy PostTxHash) noCaptures tx noQueryParams
     noHeaders PT.genericDecoder PT.genericEncoder
