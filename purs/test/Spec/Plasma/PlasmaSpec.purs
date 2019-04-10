@@ -4,6 +4,7 @@ import Prelude
 
 import Chanterelle.Test (assertWeb3)
 import Data.Array (filter, head)
+import Data.ByteString as BS
 import Data.Either (Either(..))
 import Data.Lens ((?~), (.~))
 import Data.Maybe (Maybe(..), isJust)
@@ -12,9 +13,10 @@ import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
-import Network.Ethereum.Core.Signatures as Sig
-import Network.Ethereum.Core.HexString (fromByteString, toByteString)
+import Network.Ethereum.Core.HexString (fromByteString, hexLength, toByteString)
+import Network.Ethereum.Core.Keccak256 (keccak256)
 import Network.Ethereum.Core.RLP (rlpEncode)
+import Network.Ethereum.Core.Signatures as Sig
 import Network.Ethereum.Web3 (class KnownSize, Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
 import Network.Ethereum.Web3.Api (personal_sign)
 import Network.Ethereum.Web3.Solidity.Size (kind DigitList)
@@ -120,7 +122,8 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
           let signature@(EthSignature sig) = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
           C.log "Performing local ecrecover..."
-          Sig.publicToAddress (Sig.recoverSender (toByteString transactionHash) sig) `shouldEqual` bob
+          let messageBS = keccak256 <<< makeRidiculousEthereumMessage $ transactionHash
+          Sig.publicToAddress (Sig.recoverSender messageBS sig) `shouldEqual` bob
           let transaction' = transaction # transactionInput0 <<< inputSignature .~ signature
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend transaction'
@@ -164,3 +167,9 @@ includeDeposit user {provider, clientEnv} depositNonce = do
                                     }
   C.log "Including deposit into side chain..."
   assertRequest clientEnv $ Routes.postIncludeDeposit depositBody
+
+
+makeRidiculousEthereumMessage :: HexString -> HexString
+makeRidiculousEthereumMessage s =
+  let prefix = fromByteString <<< BS.toUTF8 $ "\EMEthereum Signed Message:\n" <> show (hexLength s `div` 2)
+  in prefix <> s
