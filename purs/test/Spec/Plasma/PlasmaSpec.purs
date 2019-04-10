@@ -120,9 +120,11 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           C.log $ "PS transaction hash: " <> show (fromByteString $ rlpEncode $ makeTransactionRLP transaction)
           C.log $ "Signing transaction hash ... "
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
+          C.log $ "Got signature from node... " <> show signatureHex
           let signature@(EthSignature sig) = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
           C.log "Performing local ecrecover..."
           let messageBS = keccak256 <<< makeRidiculousEthereumMessage $ transactionHash
+          C.logShow $ fromByteString messageBS
           Sig.publicToAddress (Sig.recoverSender messageBS sig) `shouldEqual` bob
           let transaction' = transaction # transactionInput0 <<< inputSignature .~ signature
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
