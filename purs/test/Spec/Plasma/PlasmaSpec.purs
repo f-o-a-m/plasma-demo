@@ -105,9 +105,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , output1: emptyOutput
                 , fee: 100
                 }
-              txH = rlpEncode $ makeTransactionRLP transaction
-              transactionHash = fromByteString txH
-          C.log $ "Sign transaction byte hash: " <> show txH
+              transactionHash = fromByteString $ rlpEncode $ makeTransactionRLP transaction
           C.log $ "Sign transaction hash: " <> show transactionHash
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
           let signature = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
