@@ -13,25 +13,27 @@
 We now provide a super simple way to run the test-suite. It only depends on docker!
 
 ```
-> make install
-> docker-compose pull
-> docker-compose up -d
-> sleep 5
-> make deploy-and-test
-> docker-compose down
+make install
+docker-compose pull
+docker-compose up -d
+sleep 5
+make build-purs
+make deploy-and-test
+docker-compose down
 ```
 
 If you want to run each step manually, you can do something like but note that this currently deploys the contracts twice
 ```
-> make install
-> docker-compose pull
-> docker-compose up -d cliquebait
-> make deploy-contracts
-> make write-plasma-toml
-> sleep 5
-> docker-compose up -d plasma
-> make deploy-and-test
-> docker-compose down
+make install
+docker-compose pull
+docker-compose up -d cliquebait
+make deploy-contracts
+make write-plasma-toml
+sleep 5
+docker-compose up -d plasma
+make build-purs
+make deploy-and-test
+docker-compose down
 ```
 
 
