@@ -15,7 +15,6 @@ import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
 import Network.Ethereum.Core.HexString (fromByteString, hexLength, toByteString)
 import Network.Ethereum.Core.Keccak256 (keccak256)
-import Network.Ethereum.Core.RLP (rlpEncode)
 import Network.Ethereum.Core.Signatures as Sig
 import Network.Ethereum.Web3 (class KnownSize, Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
 import Network.Ethereum.Web3.Api (personal_sign)
@@ -25,7 +24,7 @@ import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, makeTransactionRLP, zeroPosition, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroSignature, EthSignature(..))
+import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, zeroPosition, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroSignature, EthSignature(..))
 import Servant.Api.Types (Captures(..), QueryParams(..), Required(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
