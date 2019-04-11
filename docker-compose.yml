@@ -5,7 +5,7 @@ services:
     ports:
       - "8545:8545"
   plasma:
-    image: docker.kube-system.svc.cluster.local/foam/plasma-mvp-sidechain:latest
+    image: foamspace/plasma-mvp-sidechain:latest
     ports:
       - "1317:1317"
       - "26657:26657"

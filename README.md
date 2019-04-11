@@ -7,13 +7,24 @@
 - Set [GOPATH environment variable](https://github.com/golang/go/wiki/SettingGOPATH)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 
-## Easy install 
+## Easy install
 
 
 We now provide a super simple way to run the test-suite. It only depends on docker!
 
 ```
 > make install
+> docker-compose pull
+> docker-compose up -d
+> sleep 5
+> make deploy-and-test
+> docker-compose down
+```
+
+If you want to run each step manually, you can do something like but note that this currently deploys the contracts twice
+```
+> make install
+> docker-compose pull
 > docker-compose up -d cliquebait
 > make deploy-contracts
 > make write-plasma-toml
@@ -22,6 +33,7 @@ We now provide a super simple way to run the test-suite. It only depends on dock
 > make deploy-and-test
 > docker-compose down
 ```
+
 
 ## Setting up `plasma-mvp-sidechain` (only once)
 
@@ -103,8 +115,8 @@ Make sure you have the tendermint node up
 
 `PLASMA_ADDRESS` is visible after running `plasmad start`. In following example it is `0xe545eaf693277ead76f5d9b4665291b0ac38853c`:
 ```
-plasmad start 
-I[2046-04-02|14:05:54.360] Starting ABCI with Tendermint                module=main 
+plasmad start
+I[2046-04-02|14:05:54.360] Starting ABCI with Tendermint                module=main
 I[2046-04-02|14:05:54.388] binding to contract address 0xe545eaf693277ead76f5d9b4665291b0ac38853c module=main
 
 ...
