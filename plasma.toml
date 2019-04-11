@@ -1,6 +1,0 @@
-plasma_block_commitment_rate = "2s"
-is_operator = "false"
-ethereum_plasma_contract_address = "0x788008b8fa2306388fbdabca2af413977df6098a"
-ethereum_operator_privatekey = ""
-ethereum_nodeurl = "http://cliquebait:8545"
-ethereum_finality = "18"

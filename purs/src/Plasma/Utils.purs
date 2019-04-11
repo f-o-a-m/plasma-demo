@@ -68,23 +68,21 @@ exitUTXO
      MonadAsk ClientEnv m
   => MonadError AjaxError m
   => MonadAff m
-  => { txOpts :: TransactionOptions MinorUnit
-     , provider :: Provider
-     }
+  => TransactionOptions MinorUnit
   -> { utxo :: UTXO
      , ownerEth :: EthAddress
      , ownerPassword :: Maybe String
      , fee :: Int
      }
-  -> m (Either Web3Error HexString)
-exitUTXO {txOpts, provider} {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} = do
+  -> m (Web3 HexString)
+exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} = do
   GetProofResp {proof: mProof, transaction} <- Routes.getProof $ QueryParams { ownerAddress: Required ownerEth
                                                                              , position: Required u.position
                                                                              }
   let coerceInt n = case uIntNFromBigNumber s256 (embed n) of
                       Nothing -> unsafeCrashWith "Int failed to be UINT"
                       Just a -> a
-      position = case u.position of
+      txPos = case u.position of
         Position p -> coerceInt p.blockNumber :< coerceInt p.transactionIndex :< coerceInt p.outputIndex :< nilVector
       committedFee = coerceInt fee
       proof = case mProof of
@@ -92,9 +90,9 @@ exitUTXO {txOpts, provider} {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} 
         Just (Base64String p) -> p
       txBytes = un Base64String (un TendermintTransaction transaction).tx
       EthAddress owner = ownerEth
-  liftAff $ runWeb3 provider do
+  pure $ do
     Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: owner, password: ownerPassword} utxo
-    PlasmaMVP.startTransactionExit txOpts { txPos: position
+    PlasmaMVP.startTransactionExit txOpts { txPos
                                           , txBytes
                                           , proof
                                           , confirmSignatures

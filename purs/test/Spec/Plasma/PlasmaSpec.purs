@@ -6,8 +6,9 @@ import Chanterelle.Test (assertWeb3)
 import Data.Array (filter, head)
 import Data.ByteString as BS
 import Data.Either (Either(..))
+import Data.Foldable (length)
 import Data.Lens ((?~), (.~))
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
@@ -22,15 +23,17 @@ import Network.Ethereum.Web3.Solidity.Size (kind DigitList)
 import Network.Ethereum.Web3.Solidity.Sizes (S256)
 import Network.Ethereum.Web3.Types (ETHER, NoPay)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
+import Partial.Unsafe (unsafePartial)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (EthAddress(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, zeroPosition, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroSignature, EthSignature(..))
+import Plasma.Types (EthAddress(..), EthSignature(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroPosition, zeroSignature)
+import Plasma.Utils as Utils
 import Servant.Api.Types (Captures(..), QueryParams(..), Required(..))
 import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
 import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (fail, shouldEqual, shouldNotEqual, shouldSatisfy)
+import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
 import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
@@ -125,7 +128,26 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend transaction'
           alicesUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress alice})
-          alicesUTXOs `shouldNotEqual` []
+          -- TODO: DO this smarter if you want to continue to write parallel tests
+          C.log "Making sure that alice has at least one unspent UTXO"
+          length alicesUTXOs `shouldNotEqual` 0
+          let alicesUTXO = unsafePartial fromJust $ head alicesUTXOs
+              exitTxOpts = defaultPlasmaTxOptions # _from ?~ alice
+                                                  # _value ?~ mkValue zero
+                                                  # _to ?~ plasmaAddress
+          exitTransaction <- assertRequest clientEnv $
+               Utils.exitUTXO exitTxOpts { utxo: alicesUTXO
+                                         , ownerEth: EthAddress alice
+                                         , ownerPassword: Just defaultPassword
+                                         , fee: 0
+                                         }
+          eExitRes <- assertWeb3 provider $
+                takeEventOrFail (Proxy :: Proxy PlasmaMVP.StartedTransactionExit) provider plasmaAddress exitTransaction
+          case eExitRes of
+            Left exitTxHash -> fail ("Failed to submit startTransactionExit Tx: " <> show exitTxHash)
+            Right (Tuple (Change exitChange) (PlasmaMVP.StartedTransactionExit exitEv)) -> do
+              C.log ("TransactionExit submitted succcessfully, txHash: " <> show exitChange.transactionHash)
+              C.logShow exitEv
 
 
 defaultPlasmaTxOptions :: TransactionOptions NoPay
