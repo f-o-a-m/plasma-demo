@@ -97,7 +97,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           utxo.spent `shouldEqual` false
 
           let confirmSignatures = [] -- leave it empty, as its the same as not setting `flagConfirmSigs0` or `flagConfirmSigs1` by using cli
-              spendAmount = 9000
+              spendAmount = 10000
               input0 = Input
                 { position
                 , signature: zeroSignature
@@ -112,7 +112,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , input1: emptyInput
                 , output0
                 , output1: emptyOutput
-                , fee: 1000
+                , fee: 0
                 }
           C.log $ "Generate tx hash on server-side ... "
           transactionHash <- assertRequest clientEnv $ Routes.postTxHash transaction
