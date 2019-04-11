@@ -31,13 +31,13 @@ import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
 import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (fail, shouldEqual, shouldNotEqual, shouldSatisfy)
 import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
 plasmaSpec cfg = do
-  -- nodeHealthSpec cfg
-  -- depositSpec cfg
+  nodeHealthSpec cfg
+  depositSpec cfg
   spendSpec cfg
 
 nodeHealthSpec
@@ -75,7 +75,7 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
 spendSpec :: PlasmaSpecConfig -> Spec Unit
 spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
   describe "Plasma Root Contract" $
-    it "can deposit ETH into the rootchain contract, transfer it to the sidechain and spend some ETH to another account" $ do
+    it "can deposit ETH into the rootchain contract, transfer it to the sidechain and spend some ETH UTXO to another account" $ do
       let depositAmountEth = mkValue (embed 10000) :: Value Wei
           bob = users.bob
           alice = users.alice
@@ -116,23 +116,17 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 }
           C.log $ "Generate tx hash on server-side ... "
           transactionHash <- assertRequest clientEnv $ Routes.postTxHash transaction
-          C.log $ "Go transaction hash: " <> show transactionHash
-          C.log $ "PS transaction hash: " <> show (fromByteString $ rlpEncode $ makeTransactionRLP transaction)
-          C.log $ "Signing transaction hash ... "
+          C.log $ "Signing transaction hash with eth node... "
           signatureHex <- assertWeb3 provider $ personal_sign transactionHash bob $ Just defaultPassword
-          C.log $ "Got signature from node... " <> show signatureHex
           let signature@(EthSignature sig) = removeEthereumSignatureShift <<< signatureFromByteString <<< toByteString $ signatureHex
-          C.log "Performing local ecrecover..."
-          let messageBS = keccak256 <<< makeRidiculousEthereumMessage $ transactionHash
-          C.logShow $ fromByteString messageBS
+              messageBS = keccak256 <<< makeRidiculousEthereumMessage $ transactionHash
+          -- sanity check to make sure the signature even has the possibility to be correct
           Sig.publicToAddress (Sig.recoverSender messageBS sig) `shouldEqual` bob
           let transaction' = transaction # transactionInput0 <<< inputSignature .~ signature
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend transaction'
-          assertWeb3 provider $ waitForBlocks finalizedPeriod
-
-          -- TODO (sectore) Check Alice balance to see `spendAmount` was sent to her
-          "not" `shouldEqual` "ready"
+          alicesUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress alice})
+          alicesUTXOs `shouldNotEqual` []
 
 
 defaultPlasmaTxOptions :: TransactionOptions NoPay
