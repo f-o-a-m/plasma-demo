@@ -7,11 +7,13 @@ import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Reader.Class (class MonadAsk)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un, wrap)
+import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as C
 import Network.Ethereum.Web3 (httpProvider)
+import Network.Ethereum.Core.HexString (HexString)
 import Plasma.Types as PT
 import Plasma.Utils (makeConfirmationSignatureWithNode, validateExitLengths)
 import Servant.Api.Types (type (:>), Capture, Captures, GET, POST, QP, QueryParams(..), Required(..), RouteProxy(..), S, noCaptures, noHeaders, noQueryParams)
@@ -88,6 +90,7 @@ getProof
   -> m PT.GetProofResp
 getProof qps = buildGetRequest (RouteProxy :: RouteProxy GetProof) noCaptures qps noHeaders PT.genericDecoder
 
+testGetProof :: Effect Unit
 testGetProof = launchAff_ do
   r@(PT.GetProofResp resp) <- assertRequest {protocol : "http", baseURL: "//127.0.0.1:1317/"} $ getProof $
   QueryParams { ownerAddress: Required (unsafeCoerce "11205dbb90321aeb5e6b8a6792f1e83412bb522b")
@@ -114,7 +117,7 @@ testGetProof = launchAff_ do
               , password: Just "password123"
               }
   sig <- assertWeb3 provider $ makeConfirmationSignatureWithNode creds utxo
-  let args = { txBytes: (un PT.Transaction resp.transaction).tx
+  let args = { txBytes: (un PT.TendermintTransaction resp.transaction).tx
              , proof: fromMaybe (wrap mempty) resp.proof
              , confirmationSignatures: [sig]
              }
@@ -140,7 +143,7 @@ getUTXO
   -> m PT.UTXO
 getUTXO qps = buildGetRequest (RouteProxy :: RouteProxy GetUTXO) noCaptures qps noHeaders PT.genericDecoder
 
-
+testGetUTXO :: Effect Unit
 testGetUTXO = launchAff_ do
   resp <- assertRequest {protocol : "http", baseURL: "//127.0.0.1:1317/"} $ getUTXO $
             QueryParams { ownerAddress: Required (unsafeCoerce "11205dbb90321aeb5e6b8a6792f1e83412bb522b")
@@ -152,3 +155,38 @@ testGetUTXO = launchAff_ do
                                               )
                         }
   C.logShow resp
+
+--------------------------------------------------------------------------------
+
+type PostSpend =
+     S "spend"
+  :> POST PT.Transaction String
+
+postSpend
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => PT.Transaction
+  -> m String
+postSpend tx =
+  buildPostRequest (RouteProxy :: RouteProxy PostSpend) noCaptures tx noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder
+
+--------------------------------------------------------------------------------
+
+type PostTxHash =
+     S "tx"
+  :> S "hash"
+  :> POST PT.Transaction HexString
+
+postTxHash
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => PT.Transaction
+  -> m HexString
+postTxHash tx =
+  buildPostRequest (RouteProxy :: RouteProxy PostTxHash) noCaptures tx noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder

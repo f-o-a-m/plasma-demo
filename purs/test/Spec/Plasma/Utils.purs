@@ -6,6 +6,7 @@ import Chanterelle.Internal.Utils (pollTransactionReceipt)
 import Control.Monad.Reader (ask)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
+import Data.Newtype (over2)
 import Data.Traversable (traverse_)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Milliseconds(..), delay, error, forkAff, killFiber)
@@ -13,7 +14,7 @@ import Effect.Aff.AVar as AVar
 import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console as C
-import Network.Ethereum.Web3 (class EventFilter, Address, BigNumber, BlockNumber, Change, EventAction(..), HexString, Provider, TransactionReceipt(..), TransactionStatus(..), UIntN, Web3, event, eventFilter, forkWeb3', uIntNFromBigNumber)
+import Network.Ethereum.Web3 (class EventFilter, Address, BigNumber, BlockNumber(..), Change, EventAction(..), HexString, Provider, TransactionReceipt(..), TransactionStatus(..), UIntN, Web3, event, eventFilter, forkWeb3', uIntNFromBigNumber)
 import Network.Ethereum.Web3.Api (eth_blockNumber)
 import Network.Ethereum.Web3.Solidity.Event (class DecodeEvent)
 import Network.Ethereum.Web3.Solidity.Sizes (S256, s256)
@@ -53,17 +54,28 @@ takeEventOrFail prx provider addrs web3Action = do
           AVar.put (Left txHash) var
         _ -> pure unit
 
+-- | Wait for a specific block number
 waitForBlock
   :: BlockNumber
   -> Web3 Unit
 waitForBlock bn = do
   currentBlock <- eth_blockNumber
   if currentBlock >= bn
-     then pure unit
-     else do
-       liftEffect $ C.log ("Waiting for BlockNumber " <> show bn <> "...")
-       liftAff (delay $ Milliseconds 1000.0)
-       waitForBlock bn
+    then do
+      liftEffect $ C.log $ "🔗 Receiving block " <> show currentBlock
+      pure unit
+    else do
+      liftEffect $ C.log ("Waiting for block " <> show bn <> " (current: " <> show currentBlock <>") ...")
+      liftAff (delay $ Milliseconds 1000.0)
+      waitForBlock bn
+
+-- | Wait for number of blocks
+waitForBlocks
+  :: BlockNumber
+  -> Web3 Unit
+waitForBlocks offset =
+  over2 BlockNumber (+) offset <$> eth_blockNumber
+    >>= waitForBlock
 
 --------------------------------------------------------------------------------
 
@@ -74,3 +86,6 @@ unsafeFromJust :: forall a. String -> Maybe a -> a
 unsafeFromJust msg = case _ of
   Nothing -> unsafeCrashWith $ "unsafeFromJust: " <> msg
   Just a -> a
+
+defaultPassword :: String
+defaultPassword = "password123"

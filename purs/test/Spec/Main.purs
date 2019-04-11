@@ -10,9 +10,9 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as C
-import Network.Ethereum.Web3 (httpProvider, mkAddress, mkHexString)
+import Network.Ethereum.Web3 (httpProvider)
 import Node.Process as NP
-import Partial.Unsafe (unsafeCrashWith)
+import Plasma.Config.TOML (discoverPlasmaContractAddress)
 import Spec.Config (PlasmaSpecConfig, getFinalizedPeriod, mkUsers)
 import Spec.Plasma.PlasmaSpec (plasmaSpec)
 import Test.Spec.Reporter (consoleReporter)
@@ -25,10 +25,7 @@ main = launchAff_  do
   provider <- liftEffect $ httpProvider nodeUrl
   users <- mkUsers provider
   --deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy'
-  plasmaAddressStr <- liftEffect (NP.lookupEnv "PLASMA_ADDRESS")
-  let plasmaAddress = case plasmaAddressStr >>= mkHexString >>= mkAddress of
-        Nothing -> unsafeCrashWith "Must provide PLASMA_ADDRESS env var."
-        Just addr -> addr
+  plasmaAddress <- discoverPlasmaContractAddress
   finalizedPeriod <- liftEffect getFinalizedPeriod
   let plasmaConfig :: PlasmaSpecConfig
       plasmaConfig = { plasmaAddress: plasmaAddress
