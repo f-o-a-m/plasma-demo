@@ -40,10 +40,10 @@ install:
   # deploy contracts
   - cd $TRAVIS_BUILD_DIR
   - npm i
+  - make compile-contracts
   - make build-purs
   - make generate-genesis
   - docker run -d -p 8545:8545 -v `pwd`/cliquebait-generated.json:/cliquebait/cliquebait.json foamspace/cliquebait:latest
-  - make compile-contracts
   - make deploy-contracts
 
   # install plasma
