@@ -41,6 +41,13 @@ contract PlasmaMVP {
 
     address public operator;
 
+    // exitDelay is measured in seconds
+    uint256 public exitDelay;
+    // depositChallengePeriod is measured in seconds
+    uint256 public depositChallengePeriod;
+    // nonDepositChallengePeriod is measured in seconds
+    uint256 public nonDepositChallengePeriod;
+
     uint256 public lastCommittedBlock;
     uint256 public depositNonce;
     mapping(uint256 => plasmaBlock) public plasmaChain;
@@ -113,13 +120,19 @@ contract PlasmaMVP {
         operator = newOperator;
     }
 
-    constructor() public
+    constructor(uint256 _exitDelay, uint256 _depositChallengePeriod, uint256 _nonDepositChallengePeriod) public
     {
         operator = msg.sender;
 
         lastCommittedBlock = 0;
         depositNonce = 1;
         minExitBond = 200000;
+
+        // set times
+        exitDelay = _exitDelay;
+        depositChallengePeriod = _depositChallengePeriod;
+        nonDepositChallengePeriod = _nonDepositChallengePeriod;
+
     }
 
     // @param blocks       32 byte merkle headers appended in ascending order
@@ -242,7 +255,7 @@ contract PlasmaMVP {
         // calculate the priority of the transaction taking into account the withdrawal delay attack
         // withdrawal delay attack: https://github.com/FourthState/plasma-mvp-rootchain/issues/42
         uint256 createdAt = plasmaChain[txPos[0]].createdAt;
-        txExitQueue.insert(SafeMath.max(createdAt.add(1 weeks), block.timestamp) << 128 | position);
+        txExitQueue.insert(SafeMath.max(createdAt.add(exitDelay), block.timestamp) << 128 | position);
 
         // write exit to storage
         txExits[position] = exit({
@@ -351,7 +364,7 @@ contract PlasmaMVP {
         uint256 position = calcPosition([blockNumber, feeIndex, 0]);
         require(txExits[position].state == ExitState.NonExistent);
 
-        txExitQueue.insert(SafeMath.max(blk.createdAt.add(1 weeks), block.timestamp) << 128 | position);
+        txExitQueue.insert(SafeMath.max(blk.createdAt.add(exitDelay), block.timestamp) << 128 | position);
 
         txExits[position] = exit({
             owner: msg.sender,
@@ -457,11 +470,11 @@ contract PlasmaMVP {
         /*
         * Conditions:
         *   1. Exits exist
-        *   2. Exits must be a week old
+        *   2. Exits must be a `exitDelay` old
         *   3. Funds must exist for the exit to withdraw
         */
         uint256 amountToAdd;
-        uint256 challengePeriod = isDeposits ? 5 days : 1 weeks;
+        uint256 challengePeriod = isDeposits ? depositChallengePeriod : nonDepositChallengePeriod;
         while (block.timestamp.sub(currentExit.createdAt) > challengePeriod &&
                plasmaChainBalance() > 0 &&
                gasleft() > 80000) {
