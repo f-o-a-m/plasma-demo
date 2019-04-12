@@ -33,7 +33,7 @@ import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig)
 import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy, shouldNotEqual)
 import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
