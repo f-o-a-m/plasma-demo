@@ -6,20 +6,24 @@ import Control.Error.Util (note)
 import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Reader.Class (class MonadAsk)
 import Data.ByteString as BS
-import Data.Either (Either)
+import Data.Either (Either(..))
+import Data.Lens ((?~))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Traversable (for)
+import Debug.Trace as Trace
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class (liftEffect)
+import Effect.Exception (throw)
 import Network.Ethereum.Core.BigNumber (embed)
 import Network.Ethereum.Core.HexString (HexString, fromByteString, toByteString)
-import Network.Ethereum.Web3 (Address, Web3)
+import Network.Ethereum.Web3 (Address, Web3, _value)
 import Network.Ethereum.Web3.Api (personal_sign)
 import Network.Ethereum.Web3.Solidity.Sizes (s256)
-import Network.Ethereum.Web3.Solidity.UInt (uIntNFromBigNumber)
+import Network.Ethereum.Web3.Solidity.UInt (uIntNFromBigNumber, unUIntN)
 import Network.Ethereum.Web3.Solidity.Vector (nilVector, (:<))
-import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
-import Network.Ethereum.Web3.Types.Types (TransactionOptions)
+import Network.Ethereum.Web3.Types.TokenUnit (NoPay, mkValue)
+import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions)
 import Partial.Unsafe (unsafeCrashWith)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
@@ -41,21 +45,15 @@ makeConfirmationSignatureWithNode {signer, password} (UTXO {confirmationHash}) =
 validateExitLengths
   :: { txBytes :: Base64String
      , proof :: Base64String
-     , confirmationSignatures :: Array Base64String
+     , confirmSignatures :: Array Base64String
      }
-  -> Either String { txBytes :: Base64String
-                   , proof :: Base64String
-                   , confirmationSignatures :: Array Base64String
-                   }
-validateExitLengths {txBytes, proof, confirmationSignatures} = do
+  -> Either String Unit
+validateExitLengths {txBytes, proof, confirmSignatures} = do
     txBytes' <- txBytes `validateLength` 811 `flip note` ("Invalid txBytes length, should be 811: " <> show txBytes)
     proof' <- proof `validateLengthModulo` 32 `flip note` ("Invalid proof length, should by multiple of 32: " <> show proof)
-    sigs' <- for confirmationSignatures $ \sig ->
+    sigs' <- for confirmSignatures $ \sig ->
       sig `validateLengthModulo` 65 `flip note` ("Invalid signature length, should be 65 bytes: " <> show sig)
-    pure { txBytes: txBytes'
-         , proof: proof'
-         , confirmationSignatures: sigs'
-         }
+    pure unit
   where
     validateLength a@(Base64String bs) n =
       if BS.length bs == n then Just a else Nothing
@@ -67,7 +65,7 @@ exitUTXO
      MonadAsk ClientEnv m
   => MonadError AjaxError m
   => MonadAff m
-  => TransactionOptions MinorUnit
+  => TransactionOptions NoPay
   -> { utxo :: UTXO
      , ownerEth :: EthAddress
      , ownerPassword :: Maybe String
@@ -91,9 +89,24 @@ exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} = do
       EthAddress owner = ownerEth
   pure $ do
     Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: owner, password: ownerPassword} utxo
-    PlasmaMVP.startTransactionExit txOpts { txPos
-                                          , txBytes
-                                          , proof
-                                          , confirmSignatures
-                                          , committedFee
-                                          }
+    eminExitBond <- PlasmaMVP.minExitBond txOpts Latest
+    case eminExitBond of
+      Left err -> liftEffect $ throw ("Call error when getting minimum exit bond: " <> show err)
+      Right _minExitBond -> do
+        case validateExitLengths {proof: Base64String proof, txBytes: Base64String txBytes, confirmSignatures: [Base64String confirmSignatures]} of
+          Left err -> liftEffect $ throw ("Invalid exit args: " <> err)
+          Right _ -> do
+            let bondedTxOpts = txOpts # _value ?~ mkValue (unUIntN _minExitBond)
+                args = { txPos
+                       , txBytes
+                       , proof
+                       , confirmSignatures
+                       , committedFee
+                       }
+            Trace.traceM args
+            PlasmaMVP.startTransactionExit bondedTxOpts { txPos
+                                                        , txBytes
+                                                        , proof
+                                                        , confirmSignatures
+                                                        , committedFee
+                                                        }

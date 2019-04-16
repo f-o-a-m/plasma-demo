@@ -10,30 +10,35 @@ import Prelude
 
 import Chanterelle.Internal.Deploy (readDeployAddress)
 import Chanterelle.Internal.Logging (logDeployError)
+import Chanterelle.Test (assertWeb3)
 import Control.Error.Util (note)
 import Control.Monad.Except (runExceptT)
-import Data.Array ((:))
+import Data.Array ((:), (!!))
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Int (fromString)
+import Data.Lens ((?~))
 import Data.Maybe (Maybe(..), maybe)
 import Data.String (joinWith)
 import Data.Symbol (class IsSymbol, SProxy, reflectSymbol)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class (liftEffect)
 import Effect.Class.Console as C
 import Effect.Exception (throw)
 import Heterogeneous.Folding (class FoldingWithIndex, hfoldlWithIndex)
 import Network.Ethereum.Core.BigNumber (parseBigNumber, decimal)
 import Network.Ethereum.Core.HexString (unHex)
-import Network.Ethereum.Core.Signatures (PrivateKey, unPrivateKey, mkPrivateKey)
-import Network.Ethereum.Web3 (Address, Provider, runWeb3, httpProvider, mkHexString, mkAddress)
-import Network.Ethereum.Web3.Api (net_version)
+import Network.Ethereum.Core.Signatures (PrivateKey, mkPrivateKey, privateToAddress, unPrivateKey)
+import Network.Ethereum.Web3 (Address, Provider, runWeb3, httpProvider, mkHexString, mkAddress, embed)
+import Network.Ethereum.Web3.Api (eth_getAccounts, eth_sendTransaction, net_version)
+import Network.Ethereum.Web3.Types.EtherUnit (Ether)
+import Network.Ethereum.Web3.Types.TokenUnit (Value, convert, mkValue)
+import Network.Ethereum.Web3.Types.Types (_from, _to, _value, defaultTransactionOptions)
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff (writeTextFile)
 import Node.Process as NP
 import Partial.Unsafe (unsafeCrashWith)
+import Plasma.Config.Utils (asBoolean, asInt, asPrivateKey, asString, requireEnvVar)
 
 {-
 
@@ -126,7 +131,7 @@ makeConfigFromEnvironment :: Aff PlasmaConfig
 makeConfigFromEnvironment = do
   isOperator <- requireEnvVar "IS_OPERATOR" asBoolean
   operatorKey <- if isOperator
-       then Just <$> requireEnvVar "OPERATOR_PRIVATE_KEY" asPrivateKey
+       then Just <$> discoverAndFaucetOperator
        else pure Nothing
   commitmentRate <- requireEnvVar "COMMITMENT_RATE" asInt
   nodeURL <- requireEnvVar "NODE_URL" asString
@@ -139,6 +144,27 @@ makeConfigFromEnvironment = do
        , ethereum_nodeurl: nodeURL
        , ethereum_finality: finality
        }
+
+discoverAndFaucetOperator :: Aff PrivateKey
+discoverAndFaucetOperator = do
+  mOpKey <- liftEffect $ NP.lookupEnv "OPERATOR_PRIVATE_KEY"
+  operatorKey <- case mOpKey of
+    Just key -> requireEnvVar "OPERATOR_PRIVATE_KEY" asPrivateKey
+    Nothing ->
+      case mkHexString "e1c01c07784956abe9c72eb20ac6f0a075edb3e0f61e833e0855a52c6e7c7037" >>= mkPrivateKey of
+        Nothing -> unsafeCrashWith "Failed to make private key for operator"
+        Just key -> pure key
+  let operatorAddress = privateToAddress operatorKey
+  provider <- requireEnvVar "NODE_URL" asString >>= liftEffect <<< httpProvider
+  faucetTx <- assertWeb3 provider $ do
+    accounts <- eth_getAccounts
+    case accounts !! 0 of
+      Nothing -> unsafeCrashWith "Failed to find faucet account for operator."
+      Just faucet -> eth_sendTransaction $ defaultTransactionOptions # _from ?~ faucet
+                                                                     # _to ?~ operatorAddress
+                                                                     # _value ?~ convert (mkValue (embed 10) :: Value Ether)
+  C.log $ "Fauceting operator account: " <> show faucetTx
+  pure operatorKey
 
 -- | write the plasma config to a file.
 writePlasmaConfig :: PlasmaConfig -> Aff Unit
@@ -186,35 +212,3 @@ getPlasmaContractAddress (FromChanterelleArtifactFile provider filepath) = do
           logDeployError e
           liftEffect $ throw "error"
         Right res -> pure res
-
-
-type FromStringReader a = String -> Either String a
-
-requireEnvVar :: forall m a. MonadEffect m => String -> FromStringReader a -> m a
-requireEnvVar var parse = liftEffect $ do
-  mval <- NP.lookupEnv var
-  case mval of
-    Nothing -> unsafeCrashWith $ "Must specify " <> show var <> " env var"
-    Just val -> case parse val of
-      Left err -> unsafeCrashWith
-        $ "Failed to parse env var: " <> show var
-        <> ", containing: " <> show val
-        <> ", with error: " <> err
-      Right a -> pure a
-
-asBoolean :: FromStringReader Boolean
-asBoolean "true" = Right true
-asBoolean "false" = Right false
-asBoolean _ = Left "Invalid Boolean"
-
-asInt :: FromStringReader Int
-asInt = fromString >>> note "invalid Int"
-
-asString :: FromStringReader String
-asString = pure
-
-asPrivateKey :: FromStringReader PrivateKey
-asPrivateKey = (mkHexString >=> mkPrivateKey) >>> note "invalid PrivateKey"
-
-asAddress :: FromStringReader Address
-asAddress = (mkHexString >=> mkAddress) >>> note "invalid Address"

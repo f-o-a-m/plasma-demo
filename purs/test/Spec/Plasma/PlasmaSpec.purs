@@ -10,27 +10,31 @@ import Data.Foldable (length)
 import Data.Lens ((?~), (.~))
 import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.Newtype (un)
+import Data.Time.Duration (Milliseconds(..))
 import Data.Tuple (Tuple(..))
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, delay)
+import Effect.Aff.Class (liftAff)
 import Effect.Class.Console as C
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
 import Network.Ethereum.Core.HexString (fromByteString, hexLength, toByteString)
 import Network.Ethereum.Core.Keccak256 (keccak256)
 import Network.Ethereum.Core.Signatures as Sig
-import Network.Ethereum.Web3 (class KnownSize, Address, Change(..), HexString, TransactionOptions, UIntN, Value, Wei, _from, _gas, _to, _value, defaultTransactionOptions, embed, mkValue, unUIntN)
+import Network.Ethereum.Web3 (class KnownSize, Address, Change(..), HexString, UIntN, Value, Wei, _from, _to, _value, defaultTransactionOptions, embed, mkValue)
 import Network.Ethereum.Web3.Api (personal_sign)
 import Network.Ethereum.Web3.Solidity.Size (kind DigitList)
 import Network.Ethereum.Web3.Solidity.Sizes (S256)
-import Network.Ethereum.Web3.Types (ETHER, NoPay)
+import Network.Ethereum.Web3.Solidity.UInt (unUIntN)
+import Network.Ethereum.Web3.Types (ETHER)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
-import Partial.Unsafe (unsafePartial)
+import Network.Ethereum.Web3.Types.Types (ChainCursor(..), Web3)
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
 import Plasma.Types (EthAddress(..), EthSignature(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroPosition, zeroSignature)
 import Plasma.Utils as Utils
 import Servant.Api.Types (Captures(..), QueryParams(..), Required(..))
 import Servant.Client.Request (assertRequest)
-import Spec.Config (PlasmaSpecConfig)
+import Spec.Config (PlasmaSpecConfig, defaultPlasmaTxOptions)
 import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy, shouldNotEqual)
@@ -38,8 +42,8 @@ import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
 plasmaSpec cfg = do
-  nodeHealthSpec cfg
-  depositSpec cfg
+--  nodeHealthSpec cfg
+--  depositSpec cfg
   spendSpec cfg
 
 nodeHealthSpec
@@ -133,8 +137,8 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           length alicesUTXOs `shouldNotEqual` 0
           let alicesUTXO = unsafePartial fromJust $ head alicesUTXOs
               exitTxOpts = defaultPlasmaTxOptions # _from ?~ alice
-                                                  # _value ?~ mkValue zero
                                                   # _to ?~ plasmaAddress
+          _ <- assertWeb3 provider $ waitForUTXORootCommit {utxo: alicesUTXO, plasmaAddress}
           exitTransaction <- assertRequest clientEnv $
                Utils.exitUTXO exitTxOpts { utxo: alicesUTXO
                                          , ownerEth: EthAddress alice
@@ -149,9 +153,6 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
               C.log ("TransactionExit submitted succcessfully, txHash: " <> show exitChange.transactionHash)
               C.logShow exitEv
 
-
-defaultPlasmaTxOptions :: TransactionOptions NoPay
-defaultPlasmaTxOptions = defaultTransactionOptions # _gas  ?~ embed 8000000
 
 unsafeUIntNToInt :: forall n . KnownSize n => UIntN n -> Int
 unsafeUIntNToInt = unsafeToInt <<< unUIntN
@@ -190,3 +191,21 @@ makeRidiculousEthereumMessage :: HexString -> HexString
 makeRidiculousEthereumMessage s =
   let prefix = fromByteString <<< BS.toUTF8 $ "\EMEthereum Signed Message:\n" <> show (hexLength s `div` 2)
   in prefix <> s
+
+waitForUTXORootCommit
+  :: { plasmaAddress :: Address
+     , utxo :: UTXO
+     }
+  -> Web3 Unit
+waitForUTXORootCommit args@{plasmaAddress, utxo: UTXO {position: Position p}} = do
+  let txOpts = defaultTransactionOptions # _to ?~ plasmaAddress
+  eRes <- PlasmaMVP.lastCommittedBlock txOpts Latest
+  case eRes of
+    Left _ -> unsafeCrashWith "Storage Error in lastCommittedBlock"
+    Right bn ->
+      if embed p.blockNumber > unUIntN bn
+         then do
+           C.log ("Waiting for block to be committed to root chain: " <> show p.blockNumber <> " (current: " <> show bn <> ")")
+           liftAff $ delay (Milliseconds 1000.0)
+           waitForUTXORootCommit args
+         else pure unit
