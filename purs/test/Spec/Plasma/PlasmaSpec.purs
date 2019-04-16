@@ -198,6 +198,7 @@ waitForUTXORootCommit
      }
   -> Web3 Unit
 waitForUTXORootCommit args@{plasmaAddress, utxo: UTXO {position: Position p}} = do
+  C.log $ "Ensureing that block " <> show p.blockNumber <> " has been committed to the root chain ..."
   let txOpts = defaultTransactionOptions # _to ?~ plasmaAddress
   eRes <- PlasmaMVP.lastCommittedBlock txOpts Latest
   case eRes of

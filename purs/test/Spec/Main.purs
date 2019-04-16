@@ -4,7 +4,6 @@ import Prelude
 
 import Chanterelle.Internal.Utils.Web3 (pollTransactionReceipt)
 import Chanterelle.Test (assertWeb3)
-import Data.Functor (void)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un)
@@ -33,7 +32,7 @@ main = launchAff_  do
   case mTx of
     Nothing -> pure unit
     Just txHash -> void $ do
-      C.log "Waiting to change operators"
+      C.log "Waiting to change operators... "
       pollTransactionReceipt txHash provider
   finalizedPeriod <- liftEffect getFinalizedPeriod
   let plasmaConfig :: PlasmaSpecConfig
