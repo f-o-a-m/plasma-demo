@@ -1,0 +1,13 @@
+@import "base/fonts";
+
+@import "base/normalize";
+@import "base/reset";
+@import "base/page";
+
+body {
+  font-family: 'Inter UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 400;
+  color: color('white');
+}

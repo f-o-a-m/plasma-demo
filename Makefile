@@ -47,3 +47,12 @@ deploy-and-test: deploy-contracts write-plasma-toml
 	docker exec -d -e NODE_URL='"http://cliquebait:8545"'  plasma-demo_plasma_1 './run.sh'
 	sleep 2
 	NODE_URL="http://localhost:8545" PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` make test-plasma
+
+frontend-copy-assets: ## Copy all static assets into `dist` folder
+	mkdir -p frontend/dist && cp -R frontend/static/** frontend/dist
+
+frontend-start: ## Starts webserver with livereload. Note: You have  want to build all purescript sources first)
+	webpack-dev-server --port 3333 --hot
+
+frontend-build: ## Builds css html and js assets.
+	webpack

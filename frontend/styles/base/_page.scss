@@ -1,0 +1,16 @@
+html {
+  font-size: 62.5%; // change default font-size from 16px to 10px so 1rem = 10px
+}
+
+body {
+  font-size: 1.6rem; // restore default font-size so 1em = 16px
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  vertical-align: bottom;
+}

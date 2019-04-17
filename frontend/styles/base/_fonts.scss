@@ -1,0 +1,17 @@
+@mixin font-face($style, $weight, $file-name) {
+  @font-face {
+    font-family: 'Inter UI';
+    font-style: $style;
+    font-weight: $weight;
+    src: url("https://rsms.me/inter/font-files/#{$file-name}.woff2?v=2.5") format("woff2"), url("https://rsms.me/inter/font-files/#{$file-name}.woff?v=2.5") format("woff");
+  }
+}
+
+@include font-face(normal, 400, "Inter-UI-Regular");
+@include font-face(italic, 400, "Inter-UI-Italic");
+@include font-face(normal, 500, "Inter-UI-Medium");
+@include font-face(italic, 500, "Inter-UI-MediumItalic");
+@include font-face(normal, 700, "Inter-UI-Bold");
+@include font-face(italic, 700, "Inter-UI-BoldItalic");
+@include font-face(normal, 900, "Inter-UI-Black");
+@include font-face(italic, 900, "Inter-UI-BlackItalic");
