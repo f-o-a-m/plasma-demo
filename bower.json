@@ -15,10 +15,14 @@
     "purescript-servant": "f-o-a-m/purescript-servant#master",
     "purescript-heterogeneous": "0.2.0",
     "purescript-profunctor-lenses": "4.0.0",
-    "purescript-halogen": "^4.0.0"
+    "purescript-halogen": "^4.0.0",
+    "purescript-parallel": "safareli/purescript-parallel#start"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
     "purescript-spec": "safareli/purescript-spec#hook"
+  },
+  "resolutions": {
+    "purescript-parallel": "start"
   }
 }
