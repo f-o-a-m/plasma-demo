@@ -3,6 +3,7 @@
 export
 FINALIZED_PERIOD ?= 3
 NODE_URL ?= http://localhost:8545
+NODE_NETWORK_ID ?= 420123 # Cliquebait
 
 # plasma config vars, need to supply operator private key
 PLASMA_CONFIG_DESTINATION ?= ./plasma.toml
@@ -22,6 +23,9 @@ install: ## Sets up prerequistes
 
 build-purs: compile-contracts ## Build purescript src files
 	pulp build --jobs 8 --src-path purs/src
+
+build-purs-frontend: ## Build purescript sources needed by frontend
+	pulp build --jobs 8 --src-path purs/src -- --json-errors
 
 build-purs-editor: ## Build purescript src and test files for using VSCode
 	pulp build --jobs 8 --src-path purs/src -I purs/test -- --json-errors

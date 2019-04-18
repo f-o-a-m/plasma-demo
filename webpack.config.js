@@ -74,7 +74,8 @@ module.exports = function(/*env*/) {
         filename: "index.html",
       }),
       new webpack.DefinePlugin({
-        "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL),
+        "process.env.NODE_URL": JSON.stringify(process.env.NODE_URL),
+        "process.env.NODE_NETWORK_ID": JSON.stringify(process.env.NODE_NETWORK_ID),
       }),
       new MiniCssExtractPlugin({
         filename: IS_PROD ? "[name].[hash].css": "[name].css",
