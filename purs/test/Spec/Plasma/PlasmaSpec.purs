@@ -141,6 +141,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           _ <- assertWeb3 provider $ waitForUTXORootCommit {utxo: alicesUTXO, plasmaAddress}
           exitTransaction <- assertRequest clientEnv $
                Utils.exitUTXO exitTxOpts { utxo: alicesUTXO
+                                         , transferTX: transaction'
                                          , ownerEth: EthAddress alice
                                          , ownerPassword: Just defaultPassword
                                          , fee: 0

@@ -165,6 +165,24 @@ postSpend tx =
 
 --------------------------------------------------------------------------------
 
+type PostTxRLP =
+     S "tx"
+  :> S "rlp"
+  :> POST PT.Transaction HexString
+
+postTxRLP
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => PT.Transaction
+  -> m HexString
+postTxRLP tx =
+  buildPostRequest (RouteProxy :: RouteProxy PostTxRLP) noCaptures tx noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder
+
+--------------------------------------------------------------------------------
+
 type PostTxHash =
      S "tx"
   :> S "hash"

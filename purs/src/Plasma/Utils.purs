@@ -17,6 +17,7 @@ import Effect.Class (liftEffect)
 import Effect.Exception (throw)
 import Network.Ethereum.Core.BigNumber (embed)
 import Network.Ethereum.Core.HexString (HexString, fromByteString, toByteString)
+import Network.Ethereum.Core.HexString as Hex
 import Network.Ethereum.Web3 (Address, Web3, _value)
 import Network.Ethereum.Web3.Api (personal_sign)
 import Network.Ethereum.Web3.Solidity.Sizes (s256)
@@ -27,7 +28,7 @@ import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions)
 import Partial.Unsafe (unsafeCrashWith)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Position(..), TendermintTransaction(..), UTXO(..))
+import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Position(..), TendermintTransaction(..), Transaction(..), UTXO(..))
 import Servant.Api.Types (QueryParams(..), Required(..))
 import Servant.Client.Request (AjaxError, ClientEnv)
 
@@ -67,15 +68,17 @@ exitUTXO
   => MonadAff m
   => TransactionOptions NoPay
   -> { utxo :: UTXO
+     , transferTX :: Transaction
      , ownerEth :: EthAddress
      , ownerPassword :: Maybe String
      , fee :: Int
      }
   -> m (Web3 HexString)
-exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} = do
+exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee, transferTX} = do
   GetProofResp {proof: mProof, transaction} <- Routes.getProof $ QueryParams { ownerAddress: Required ownerEth
                                                                              , position: Required u.position
                                                                              }
+  weirdRLPBytes <- Hex.toByteString <$> Routes.postTxRLP transferTX
   let coerceInt n = case uIntNFromBigNumber s256 (embed n) of
                       Nothing -> unsafeCrashWith "Int failed to be UINT"
                       Just a -> a
@@ -85,7 +88,6 @@ exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} = do
       proof = case mProof of
         Nothing -> mempty
         Just (Base64String p) -> p
-      txBytes = un Base64String (un TendermintTransaction transaction).tx
       EthAddress owner = ownerEth
   pure $ do
     Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: owner, password: ownerPassword} utxo
@@ -93,19 +95,19 @@ exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee} = do
     case eminExitBond of
       Left err -> liftEffect $ throw ("Call error when getting minimum exit bond: " <> show err)
       Right _minExitBond -> do
-        case validateExitLengths {proof: Base64String proof, txBytes: Base64String txBytes, confirmSignatures: [Base64String confirmSignatures]} of
+        case validateExitLengths {proof: Base64String proof, txBytes: Base64String weirdRLPBytes, confirmSignatures: [Base64String confirmSignatures]} of
           Left err -> liftEffect $ throw ("Invalid exit args: " <> err)
           Right _ -> do
             let bondedTxOpts = txOpts # _value ?~ mkValue (unUIntN _minExitBond)
                 args = { txPos
-                       , txBytes
+                       , txBytes: weirdRLPBytes
                        , proof
                        , confirmSignatures
                        , committedFee
                        }
             Trace.traceM args
             PlasmaMVP.startTransactionExit bondedTxOpts { txPos
-                                                        , txBytes
+                                                        , txBytes: weirdRLPBytes
                                                         , proof
                                                         , confirmSignatures
                                                         , committedFee
