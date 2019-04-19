@@ -1,25 +1,13 @@
 module Plasma.Routes where
 
-import Prelude
-
-import Chanterelle.Test (assertWeb3)
 import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Reader.Class (class MonadAsk)
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (un, wrap)
-import Effect (Effect)
-import Effect.Aff (launchAff_)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class (liftEffect)
-import Effect.Class.Console as C
-import Network.Ethereum.Web3 (httpProvider)
 import Network.Ethereum.Core.HexString (HexString)
 import Plasma.Types as PT
-import Plasma.Utils (makeConfirmationSignatureWithNode, validateExitLengths)
-import Servant.Api.Types (type (:>), Capture, Captures, GET, POST, QP, QueryParams(..), Required(..), RouteProxy(..), S, noCaptures, noHeaders, noQueryParams)
+import Servant.Api.Types (type (:>), Capture, Captures, GET, POST, QP, QueryParams, Required, RouteProxy(..), S, noCaptures, noHeaders, noQueryParams)
 import Servant.Client.Client (buildGetRequest, buildPostRequest)
-import Servant.Client.Request (AjaxError, ClientEnv, assertRequest)
-import Unsafe.Coerce (unsafeCoerce)
+import Servant.Client.Request (AjaxError, ClientEnv)
 
 
 type GetHealth =
@@ -90,6 +78,7 @@ getProof
   -> m PT.GetProofResp
 getProof qps = buildGetRequest (RouteProxy :: RouteProxy GetProof) noCaptures qps noHeaders PT.genericDecoder
 
+{-
 testGetProof :: Effect Unit
 testGetProof = launchAff_ do
   r@(PT.GetProofResp resp) <- assertRequest {protocol : "http", baseURL: "//127.0.0.1:1317/"} $ getProof $
@@ -122,7 +111,7 @@ testGetProof = launchAff_ do
              , confirmationSignatures: [sig]
              }
   C.logShow (validateExitLengths args)
-
+-}
 --------------------------------------------------------------------------------
 
 type GetUTXO =
@@ -143,6 +132,7 @@ getUTXO
   -> m PT.UTXO
 getUTXO qps = buildGetRequest (RouteProxy :: RouteProxy GetUTXO) noCaptures qps noHeaders PT.genericDecoder
 
+{-
 testGetUTXO :: Effect Unit
 testGetUTXO = launchAff_ do
   resp <- assertRequest {protocol : "http", baseURL: "//127.0.0.1:1317/"} $ getUTXO $
@@ -155,7 +145,7 @@ testGetUTXO = launchAff_ do
                                               )
                         }
   C.logShow resp
-
+-}
 --------------------------------------------------------------------------------
 
 type PostSpend =
@@ -171,6 +161,24 @@ postSpend
   -> m String
 postSpend tx =
   buildPostRequest (RouteProxy :: RouteProxy PostSpend) noCaptures tx noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder
+
+--------------------------------------------------------------------------------
+
+type PostTxRLP =
+     S "tx"
+  :> S "rlp"
+  :> POST PT.Transaction HexString
+
+postTxRLP
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => PT.Transaction
+  -> m HexString
+postTxRLP tx =
+  buildPostRequest (RouteProxy :: RouteProxy PostTxRLP) noCaptures tx noQueryParams
     noHeaders PT.genericDecoder PT.genericEncoder
 
 --------------------------------------------------------------------------------

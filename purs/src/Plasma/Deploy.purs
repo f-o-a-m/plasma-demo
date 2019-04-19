@@ -23,6 +23,7 @@ import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 plasmaTestConfig :: ContractConfig ( _exitDelay :: UIntN S256
                                    , _depositChallengePeriod :: UIntN S256
                                    , _nonDepositChallengePeriod :: UIntN S256
+                                   , _minExitBond :: UIntN S256
                                    )
 plasmaTestConfig =
     { filepath: "abis/PlasmaMVP.json"
@@ -35,9 +36,11 @@ plasmaTestConfig =
       _exitDelay <- uIntNFromBigNumber s256 (embed 10) ?? "_exitDelay must be a valid UINT"
       _depositChallengePeriod <- uIntNFromBigNumber s256 (embed 10) ?? "_depositChallengePeriod must be a valid UINT"
       _nonDepositChallengePeriod <- uIntNFromBigNumber s256 (embed 10) ?? "_nonDepositChallengePeriod must be a valid UINT"
+      _minExitBond <- uIntNFromBigNumber s256 (embed 200000) ?? "_minExitBond must be a valid UINT"
       in { _exitDelay
          , _depositChallengePeriod
          , _nonDepositChallengePeriod
+         , _minExitBond
          }
 
 type DeployResults =

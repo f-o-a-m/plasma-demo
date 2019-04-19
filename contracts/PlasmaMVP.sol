@@ -120,13 +120,13 @@ contract PlasmaMVP {
         operator = newOperator;
     }
 
-    constructor(uint256 _exitDelay, uint256 _depositChallengePeriod, uint256 _nonDepositChallengePeriod) public
+    constructor(uint256 _exitDelay, uint256 _depositChallengePeriod, uint256 _nonDepositChallengePeriod, uint256 _minExitBond) public
     {
         operator = msg.sender;
 
         lastCommittedBlock = 0;
         depositNonce = 1;
-        minExitBond = 200000;
+        minExitBond = _minExitBond;
 
         // set times
         exitDelay = _exitDelay;
