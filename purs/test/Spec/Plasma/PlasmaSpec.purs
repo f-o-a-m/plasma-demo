@@ -38,7 +38,7 @@ import Servant.Client.Request (assertRequest)
 import Spec.Config (PlasmaSpecConfig, defaultPlasmaTxOptions)
 import Spec.Plasma.Utils (defaultPassword, takeEventOrFail, unsafeMkUInt256, waitForBlocks)
 import Test.Spec (Spec, describe, it)
-import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy, shouldNotEqual)
+import Test.Spec.Assertions (fail, shouldEqual, shouldNotEqual, shouldSatisfy)
 import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
@@ -82,20 +82,22 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
 spendSpec :: PlasmaSpecConfig -> Spec Unit
 spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
   describe "Plasma Root Contract" $
-    it "can deposit ETH into the rootchain contract, transfer it to the sidechain and spend some ETH UTXO to another account" $ do
+    it "can complete the happy path for a sidechain payment channel" $ do
       let depositAmountEth = mkValue (embed 10000) :: Value Wei
           bob = users.bob
           alice = users.alice
+
       deposit bob cfg depositAmountEth >>= case _ of
         Left txHash -> fail ("Failed to submit deposit: " <> show txHash)
         Right (Tuple (Change change) (PlasmaMVP.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
+          C.log "Including deposit on Plasma chain"
           txHash <- includeDeposit users.bob cfg ev.depositNonce
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
-          C.log ("Test that the UTXO exists on the plasma chain now and is unspent")
+          C.log "Test that the UTXO exists on the plasma chain now and is unspent"
           let position =  zeroPosition # positionDepositNonce .~ unsafeUIntNToInt ev.depositNonce
           UTXO utxo <- assertRequest clientEnv $ Routes.getUTXO (QueryParams  { ownerAddress : Required $ EthAddress users.bob
                                                                               , position : Required position
@@ -121,6 +123,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                 , output1: emptyOutput
                 , fee: 0
                 }
+
           C.log $ "Generate tx hash on server-side ... "
           transactionHash <- assertRequest clientEnv $ Routes.postTxHash transaction
           C.log $ "Signing transaction hash with eth node... "
@@ -136,6 +139,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           -- TODO: DO this smarter if you want to continue to write parallel tests
           C.log "Making sure that alice has at least one unspent UTXO"
           length alicesUTXOs `shouldNotEqual` 0
+
           let alicesUTXO = unsafePartial fromJust $ head $ sortWith (\(UTXO{position: p}) -> Down p) alicesUTXOs
               exitTxOpts = defaultPlasmaTxOptions # _from ?~ alice
                                                   # _to ?~ plasmaAddress
@@ -152,8 +156,27 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           case eExitRes of
             Left exitTxHash -> fail ("Failed to submit startTransactionExit Tx: " <> show exitTxHash)
             Right (Tuple (Change exitChange) (PlasmaMVP.StartedTransactionExit exitEv)) -> do
-              C.log ("TransactionExit submitted succcessfully, txHash: " <> show exitChange.transactionHash)
-              C.logShow exitEv
+              C.log ("Exit Transaction submitted succcessfully, txHash: " <> show exitChange.transactionHash)
+              assertWeb3 provider $ waitForBlocks finalizedPeriod
+
+              let getAlicesBalance = assertWeb3 provider do
+                    let balanceOpts = defaultPlasmaTxOptions # _to ?~ plasmaAddress
+                                                             # _from ?~ bob
+                    eAliceAddress <- PlasmaMVP.balanceOf balanceOpts Latest {_address : alice}
+                    case eAliceAddress of
+                      Left err -> unsafeCrashWith $ "Error checking Alice's balance: " <> show err
+                      Right bal -> pure bal
+              alicesBeforeBalance <- getAlicesBalance
+              C.log "Submitting Finalize Transaction ..."
+              efinalizeRes <- assertWeb3 provider $ do
+                let finalizeTx = PlasmaMVP.finalizeTransactionExits $ defaultPlasmaTxOptions # _to ?~ plasmaAddress
+                                                                                             # _from ?~ bob
+                takeEventOrFail (Proxy :: Proxy PlasmaMVP.FinalizedExit) provider plasmaAddress finalizeTx
+              case efinalizeRes of
+                Left finalizeTxHash -> fail ("Failed to submit finalizeTransactionExits Tx: " <> show finalizeTxHash)
+                Right (Tuple (Change _) (PlasmaMVP.FinalizedExit _)) -> do
+                  alicesAfterBalance <- getAlicesBalance
+                  (unUIntN alicesAfterBalance > unUIntN alicesBeforeBalance) `shouldEqual` true
 
 
 unsafeUIntNToInt :: forall n . KnownSize n => UIntN n -> Int

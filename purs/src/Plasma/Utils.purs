@@ -11,7 +11,6 @@ import Data.Lens ((?~))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Traversable (for)
-import Debug.Trace as Trace
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (throw)
@@ -28,7 +27,7 @@ import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions)
 import Partial.Unsafe (unsafeCrashWith)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Output(..), Position(..), TendermintTransaction(..), Transaction(..), UTXO(..))
+import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Output(..), Position(..), Transaction, UTXO(..))
 import Servant.Api.Types (QueryParams(..), Required(..))
 import Servant.Client.Request (AjaxError, ClientEnv)
 
@@ -100,13 +99,6 @@ exitUTXO txOpts {utxo: utxo@(UTXO u), originalOwnerEth, originalOwnerPassword, f
           Left err -> liftEffect $ throw ("Invalid exit args: " <> err)
           Right _ -> do
             let bondedTxOpts = txOpts # _value ?~ mkValue (unUIntN _minExitBond)
-                args = { txPos
-                       , txBytes: weirdRLPBytes
-                       , proof
-                       , confirmSignatures
-                       , committedFee
-                       }
-            Trace.traceM args
             PlasmaMVP.startTransactionExit bondedTxOpts { txPos
                                                         , txBytes: weirdRLPBytes
                                                         , proof
