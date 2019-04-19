@@ -3,13 +3,14 @@ module Spec.Plasma.PlasmaSpec (plasmaSpec) where
 import Prelude
 
 import Chanterelle.Test (assertWeb3)
-import Data.Array (filter, head)
+import Data.Array (filter, head, sortWith)
 import Data.ByteString as BS
 import Data.Either (Either(..))
 import Data.Foldable (length)
 import Data.Lens ((?~), (.~))
 import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.Newtype (un)
+import Data.Ord.Down (Down(..))
 import Data.Time.Duration (Milliseconds(..))
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, delay)
@@ -135,15 +136,15 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           -- TODO: DO this smarter if you want to continue to write parallel tests
           C.log "Making sure that alice has at least one unspent UTXO"
           length alicesUTXOs `shouldNotEqual` 0
-          let alicesUTXO = unsafePartial fromJust $ head alicesUTXOs
+          let alicesUTXO = unsafePartial fromJust $ head $ sortWith (\(UTXO{position: p}) -> Down p) alicesUTXOs
               exitTxOpts = defaultPlasmaTxOptions # _from ?~ alice
                                                   # _to ?~ plasmaAddress
           _ <- assertWeb3 provider $ waitForUTXORootCommit {utxo: alicesUTXO, plasmaAddress}
           exitTransaction <- assertRequest clientEnv $
                Utils.exitUTXO exitTxOpts { utxo: alicesUTXO
                                          , transferTX: transaction'
-                                         , ownerEth: EthAddress alice
-                                         , ownerPassword: Just defaultPassword
+                                         , originalOwnerEth: EthAddress bob
+                                         , originalOwnerPassword: Just defaultPassword
                                          , fee: 0
                                          }
           eExitRes <- assertWeb3 provider $

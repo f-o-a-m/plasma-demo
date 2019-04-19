@@ -11,20 +11,20 @@ import Data.Either (Either(..))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Lens (Lens', (^.))
+import Data.Lens (Lens')
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record as LR
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Newtype (class Newtype, un)
 import Data.String (joinWith)
 import Data.Symbol (SProxy(..))
+import Data.Tuple.Nested ((/\))
 import Foreign (F, ForeignError(..), fail)
 import Foreign.Class (class Decode, class Encode, decode, encode)
 import Foreign.Generic (decodeJSON, encodeJSON, genericDecode, genericEncode, defaultOptions)
 import Foreign.Generic.Types (Options)
 import Network.Ethereum.Core.BigNumber (decimal, parseBigNumber, toString)
 import Network.Ethereum.Core.HexString (fromByteString, toByteString, nullWord)
-import Network.Ethereum.Core.RLP (RLPObject(..))
 import Network.Ethereum.Core.Signatures as Sig
 import Network.Ethereum.Web3 (Address, BigNumber, mkAddress, mkHexString)
 import Network.HTTP.Affjax.Request as Request
@@ -34,11 +34,11 @@ import Servant.Api.Types (class EncodeQueryParam, class ToCapture)
 import Servant.Client.Client (Decoder, Encoder)
 import Type.Quotient (mkQuotient, runQuotient)
 
+--------------------------------------------------------------------------------
 
 newtype EthAddress = EthAddress Address
 derive instance genericEthAddress :: Generic EthAddress _
 derive instance newtypeEthAddress :: Newtype EthAddress _
-
 
 instance showEthAddress :: Show EthAddress where
   show = genericShow
@@ -142,6 +142,11 @@ instance encodeQueryParamPosition :: EncodeQueryParam Position where
                            , p.depositNonce
                            ]
     in "(" <> joinWith "." indexes <> ")"
+
+instance ordPosition :: Ord Position where
+  compare (Position p1) (Position p2) =
+    let toTuple p = p.blockNumber /\ p.transactionIndex /\ p.outputIndex
+    in compare (toTuple p1) (toTuple p2)
 
 zeroPosition :: Position
 zeroPosition = Position
@@ -336,28 +341,6 @@ transactionInput0 = _Newtype <<< LR.prop (SProxy :: SProxy "input0")
 
 transactionInput1 :: Lens' Transaction Input
 transactionInput1 = _Newtype <<< LR.prop (SProxy :: SProxy "input1")
-
-makeTransactionRLP :: Transaction -> RLPObject
-makeTransactionRLP (Transaction tx) = RLPArray
-  [ RLPInt $ tx.input0 ^. (inputPosition <<< positionBlockNumber)       -- BlkNum0           [32]byte
-  , RLPInt $ tx.input0 ^. (inputPosition <<< positionTransactionIndex)  -- TxIndex0          [32]byte
-  , RLPInt $ tx.input0 ^. (inputPosition <<< positionOutputIndex)       -- OIndex0           [32]byte
-  , RLPInt $ tx.input0 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce0     [32]byte
-  , makeConfirmSignaturesRLP $ tx.input0 ^. inputConfirmSignatures      -- Input0ConfirmSigs [130]byte
-  , RLPInt $ tx.input1 ^. (inputPosition <<< positionBlockNumber)       -- BlkNum1           [32]byte
-  , RLPInt $ tx.input1 ^. (inputPosition <<< positionTransactionIndex)  -- TxIndex1          [32]byte
-  , RLPInt $ tx.input1 ^. (inputPosition <<< positionOutputIndex)       -- OIndex1           [32]byte
-  , RLPInt $ tx.input1 ^. (inputPosition <<< positionDepositNonce)      -- DepositNonce1     [32]byte
-  , makeConfirmSignaturesRLP $ tx.input1 ^. inputConfirmSignatures      -- Input1ConfirmSigs [130]byte
-  , RLPAddress <<< un EthAddress $ tx.output0 ^. outputOwner                              -- NewOwner0         common.Address
-  , RLPInt $ tx.output0 ^. outputAmount                                 -- Amount0           [32]byte
-  , RLPAddress <<< un EthAddress $ tx.output1 ^. outputOwner                              -- NewOwner1         common.Address
-  , RLPInt $ tx.output1 ^. outputAmount                                 -- Amount1           [32]byte
-  , RLPInt $ tx.fee                                                     -- Fee               [32]byte
-  ]
-
-makeConfirmSignaturesRLP :: Array EthSignature -> RLPObject
-makeConfirmSignaturesRLP signatures = RLPArray $ RLPByteString <<< signatureToByteString <$> signatures
 
 --------------------------------------------------------------------------------
 

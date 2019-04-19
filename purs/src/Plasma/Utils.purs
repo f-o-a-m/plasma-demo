@@ -28,7 +28,7 @@ import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions)
 import Partial.Unsafe (unsafeCrashWith)
 import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Routes as Routes
-import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Position(..), TendermintTransaction(..), Transaction(..), UTXO(..))
+import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Output(..), Position(..), TendermintTransaction(..), Transaction(..), UTXO(..))
 import Servant.Api.Types (QueryParams(..), Required(..))
 import Servant.Client.Request (AjaxError, ClientEnv)
 
@@ -69,12 +69,13 @@ exitUTXO
   => TransactionOptions NoPay
   -> { utxo :: UTXO
      , transferTX :: Transaction
-     , ownerEth :: EthAddress
-     , ownerPassword :: Maybe String
+     , originalOwnerEth :: EthAddress
+     , originalOwnerPassword :: Maybe String
      , fee :: Int
      }
   -> m (Web3 HexString)
-exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee, transferTX} = do
+exitUTXO txOpts {utxo: utxo@(UTXO u), originalOwnerEth, originalOwnerPassword, fee, transferTX} = do
+  let ownerEth = (un Output u.output).owner
   GetProofResp {proof: mProof, transaction} <- Routes.getProof $ QueryParams { ownerAddress: Required ownerEth
                                                                              , position: Required u.position
                                                                              }
@@ -88,9 +89,9 @@ exitUTXO txOpts {utxo: utxo@(UTXO u), ownerEth, ownerPassword, fee, transferTX} 
       proof = case mProof of
         Nothing -> mempty
         Just (Base64String p) -> p
-      EthAddress owner = ownerEth
+      EthAddress originalOwner = originalOwnerEth
   pure $ do
-    Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: owner, password: ownerPassword} utxo
+    Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: originalOwner, password: originalOwnerPassword} utxo
     eminExitBond <- PlasmaMVP.minExitBond txOpts Latest
     case eminExitBond of
       Left err -> liftEffect $ throw ("Call error when getting minimum exit bond: " <> show err)
