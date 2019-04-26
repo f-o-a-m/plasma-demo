@@ -41,7 +41,7 @@
       }
     },
     "purescript-generator": {
-        "output-path": "purs/src/",
+        "output-path": "src/",
         "module-prefix": "Plasma.Contracts"
     },
     "solc-optimizer": {
