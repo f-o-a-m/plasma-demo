@@ -8,13 +8,9 @@
   ],
   "dependencies": {
     "purescript-prelude": "^4.0.0",
-    "purescript-affjax": "^6.0.0",
-    "purescript-web3": "^1.0.0",
-    "purescript-web3-generator": "^1.0.0",
-    "purescript-chanterelle": "f-o-a-m/chanterelle#v2.0.2",
+    "purescript-chanterelle": "f-o-a-m/chanterelle#upgrade",
     "purescript-servant": "f-o-a-m/purescript-servant#master",
-    "purescript-heterogeneous": "0.2.0",
-    "purescript-profunctor-lenses": "4.0.0"
+    "purescript-heterogeneous": "^0.3.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
