@@ -29,20 +29,20 @@ build-purs-editor: ## Build purescript src and test files for using VSCode
 
 compile-contracts: ## Compile all contracts from dapp/contracts and write purescript ffi modules
 	rm -fr src/Contracts
-	pulp build --modules Plasma.Deploy; chanterelle build
+	pulp build -I local/Plasma --modules Plasma.Deploy; chanterelle build
 
 generate-genesis: ## Generate a cliquebait.json file
 	chanterelle genesis --input ./cliquebait.json --output cliquebait-generated.json
 
 write-plasma-toml: ## write the plasma config to the plasma.toml file
-	pulp run --jobs 8 -m Plasma.Config.TOMLMain
+	pulp run --jobs 8 --src-path local/Plasma/Config -m Plasma.Config.TOMLMain
 
 test-plasma:  ## Run the plasma e2e
 	OPERATOR_PRIVATE_KEY=e1c01c07784956abe9c72eb20ac6f0a075edb3e0f61e833e0855a52c6e7c7037 \
 	NODE_URL=$(NODE_URL) pulp test --test-path test -m Spec.Main
 
 deploy-contracts: compile-contracts ## Deploy contracts with local config from dapp/contracts project
-	NODE_URL=$(NODE_URL) chanterelle deploy ./output/Plasma.Deploy/index.js
+	pulp build -I src --src-path local/Plasma --modules Plasma.Deploy; NODE_URL=$(NODE_URL) chanterelle deploy ./output/Plasma.Deploy/index.js
 
 deploy-and-test: deploy-contracts write-plasma-toml
 	sleep 2
