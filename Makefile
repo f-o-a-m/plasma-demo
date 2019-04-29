@@ -39,7 +39,7 @@ write-plasma-toml: ## write the plasma config to the plasma.toml file
 
 test-plasma:  ## Run the plasma e2e
 	OPERATOR_PRIVATE_KEY=e1c01c07784956abe9c72eb20ac6f0a075edb3e0f61e833e0855a52c6e7c7037 \
-	NODE_URL=$(NODE_URL) pulp test --test-path test -m Spec.Main
+	NODE_URL=$(NODE_URL) pulp test -I local --test-path test -m Spec.Main
 
 deploy-contracts: compile-contracts ## Deploy contracts with local config from dapp/contracts project
 	pulp build -I src --src-path local/Plasma --modules Plasma.Deploy; NODE_URL=$(NODE_URL) chanterelle deploy ./output/Plasma.Deploy/index.js
