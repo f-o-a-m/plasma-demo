@@ -203,7 +203,7 @@ postTxHash tx =
 
 type PostTxBytes =
   S "tx"
-  :> S "Bytes"
+  :> S "bytes"
   :> POST HexString PT.Transaction
 
 postTxBytes
