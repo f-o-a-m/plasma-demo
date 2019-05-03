@@ -198,3 +198,21 @@ postTxHash
 postTxHash tx =
   buildPostRequest (RouteProxy :: RouteProxy PostTxHash) noCaptures tx noQueryParams
     noHeaders PT.genericDecoder PT.genericEncoder
+
+--------------------------------------------------------------------------------
+
+type PostTxBytes =
+  S "tx"
+  :> S "Bytes"
+  :> POST HexString PT.Transaction
+
+postTxBytes
+  :: forall m.
+     MonadAsk ClientEnv m
+  => MonadError AjaxError m
+  => MonadAff m
+  => HexString
+  -> m PT.Transaction
+postTxBytes txBytes =
+  buildPostRequest (RouteProxy :: RouteProxy PostTxBytes) noCaptures txBytes noQueryParams
+    noHeaders PT.genericDecoder PT.genericEncoder
