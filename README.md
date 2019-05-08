@@ -84,9 +84,6 @@ go install ./...
 
 ### generating cliquebait.json and launching cliquebait
 
-Due to a bug in the way chanterelle is trying to resolve important statements, you will need to temporarily change
-the `source-dir` field in `chanterelle.json` to `contracts/libraries`. Then you can run
-
 ```bash
 > make generate-genesis
 ```
@@ -98,7 +95,6 @@ You can then launch cliquebait with this json file using
 
 ### compile contracts
 
-Make sure that the previous change in `chanterelle.json` has been reverted, so that the `source-dir` field is set to `contracts`.
 
 ```bash
 > make compile-contracts
