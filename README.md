@@ -7,6 +7,18 @@
 - Set [GOPATH environment variable](https://github.com/golang/go/wiki/SettingGOPATH)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 
+### If you are using `nix`
+
+```shell 
+nix-shell -p nodejs-8_x go dep jq 
+```
+
+You wold also need to add this to `~/.profile`:
+```
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin
+```
+
 ## Easy install
 
 
