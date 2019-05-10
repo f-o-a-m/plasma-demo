@@ -244,6 +244,9 @@ instance eqUTXO :: Eq UTXO where
 instance decodeUTXO :: Decode UTXO where
   decode = genericDecode plasmaOptions
 
+instance encodeUTXO :: Encode UTXO where
+  encode = genericEncode plasmaOptions
+
 --------------------------------------------------------------------------------
 
 newtype Input =
