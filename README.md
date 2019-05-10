@@ -7,6 +7,18 @@
 - Set [GOPATH environment variable](https://github.com/golang/go/wiki/SettingGOPATH)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 
+### If you are using `nix`
+
+```shell 
+nix-shell -p nodejs-8_x go dep jq 
+```
+
+You wold also need to add this to `~/.profile`:
+```
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin
+```
+
 ## Easy install
 
 
@@ -84,9 +96,6 @@ go install ./...
 
 ### generating cliquebait.json and launching cliquebait
 
-Due to a bug in the way chanterelle is trying to resolve important statements, you will need to temporarily change
-the `source-dir` field in `chanterelle.json` to `contracts/libraries`. Then you can run
-
 ```bash
 > make generate-genesis
 ```
@@ -98,7 +107,6 @@ You can then launch cliquebait with this json file using
 
 ### compile contracts
 
-Make sure that the previous change in `chanterelle.json` has been reverted, so that the `source-dir` field is set to `contracts`.
 
 ```bash
 > make compile-contracts
