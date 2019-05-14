@@ -8,12 +8,12 @@
   ],
   "dependencies": {
     "purescript-prelude": "^4.0.0",
-    "purescript-servant": "f-o-a-m/purescript-servant#master",
-    "purescript-heterogeneous": "^0.3.0"
+    "purescript-servant": "f-o-a-m/purescript-servant#v0.1.0",
+    "purescript-web3": "^1.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
-    "purescript-chanterelle": "f-o-a-m/chanterelle#upgrade",
-    "purescript-spec": "safareli/purescript-spec#hook"
+    "purescript-chanterelle": "f-o-a-m/chanterelle#v2.0.2",
+    "purescript-spec": "4.0.0-rc1"
   }
 }
