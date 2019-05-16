@@ -3,6 +3,7 @@
 export
 FINALIZED_PERIOD ?= 3
 NODE_URL ?= http://localhost:8545
+PLASMA_URL ?= http://localhost:1317
 
 # plasma config vars, need to supply operator private key
 PLASMA_CONFIG_DESTINATION ?= ./plasma.toml
@@ -42,7 +43,7 @@ test-plasma:  ## Run the plasma e2e
 	NODE_URL=$(NODE_URL) pulp test -I local --test-path test -m Spec.Main
 
 deploy-contracts: compile-contracts ## Deploy contracts with local config from dapp/contracts project
-	pulp build -I src --src-path local/Plasma --modules Plasma.Deploy; NODE_URL=$(NODE_URL) chanterelle deploy ./output/Plasma.Deploy/index.js
+	pulp build -I src --src-path local/Plasma --modules Plasma.Deploy; chanterelle deploy --node-url $(NODE_URL) ./output/Plasma.Deploy/index.js
 
 deploy-and-test: deploy-contracts write-plasma-toml
 	sleep 2

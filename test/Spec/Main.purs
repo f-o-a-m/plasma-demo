@@ -5,8 +5,9 @@ import Prelude
 import Chanterelle.Internal.Utils.Web3 (pollTransactionReceipt)
 import Chanterelle.Test (assertWeb3)
 import Data.Identity (Identity(..))
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, fromJust)
 import Data.Newtype (un)
+import Data.String (Pattern(..), stripPrefix)
 import Data.Time.Duration (Minutes(..), fromDuration)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
@@ -20,10 +21,12 @@ import Spec.Plasma.PlasmaSpec (plasmaSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner as Runner
 import Unsafe.Coerce (unsafeCoerce)
+import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
 main = launchAff_  do
   nodeUrl <- liftEffect $ fromMaybe "http://localhost:8545" <$> NP.lookupEnv "NODE_URL"
+  plasmaUrl <- liftEffect $ fromMaybe "http://localhost:1317" <$> NP.lookupEnv "PLASMA_URL"
   provider <- liftEffect $ httpProvider nodeUrl
   users <- mkUsers provider
   --deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy'
@@ -38,7 +41,7 @@ main = launchAff_  do
   let plasmaConfig :: PlasmaSpecConfig
       plasmaConfig = { plasmaAddress: plasmaAddress
                      , clientEnv : { protocol: "http"
-                                   , baseURL: "//127.0.0.1:1317/"
+                                   , baseURL: (unsafePartial $ fromJust $ stripPrefix (Pattern "http:") plasmaUrl) <> "/"
                                    }
                      , provider
                      , users
