@@ -8,7 +8,7 @@ import Data.ByteString as BS
 import Data.Either (Either(..))
 import Data.Foldable (length)
 import Data.Lens ((?~), (.~))
-import Data.Maybe (Maybe(..), fromJust, isJust)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe, isJust)
 import Data.Newtype (un)
 import Data.Ord.Down (Down(..))
 import Data.Time.Duration (Milliseconds(..))
@@ -74,7 +74,7 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
           txHash <- includeDeposit users.bob cfg ev.depositNonce
-          bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
+          bobsUTXOs <- assertRequest clientEnv $ map (fromMaybe []) $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
           let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
                 (un Position u.position).depositNonce == unsafeUIntNToInt ev.depositNonce
           utxo `shouldSatisfy` isJust
@@ -135,7 +135,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           let transaction' = transaction # transactionInput0 <<< inputSignature .~ signature
           C.log $ "Spending " <> show spendAmount <> " from " <> show bob <> " to " <> show alice
           _ <- assertRequest clientEnv $ Routes.postSpend transaction'
-          alicesUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress alice})
+          alicesUTXOs <- assertRequest clientEnv $ map (fromMaybe []) $ Routes.getUTXOs (Captures {owner: EthAddress alice})
           -- TODO: DO this smarter if you want to continue to write parallel tests
           C.log "Making sure that alice has at least one unspent UTXO"
           length alicesUTXOs `shouldNotEqual` 0
