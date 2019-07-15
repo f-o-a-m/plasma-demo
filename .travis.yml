@@ -27,14 +27,14 @@ install:
   - pwd
   - go get github.com/FourthState/plasma-mvp-sidechain || true
   - cd $GOPATH/src/github.com/FourthState/plasma-mvp-sidechain
-  - git remote rename origin upstream 
+  - git remote rename origin upstream
   - git remote add origin https://github.com/f-o-a-m/plasma-mvp-sidechain.git
   - git fetch --all
-  - git checkout http-server
+  - git checkout demo
   - dep ensure -vendor-only
-  - cd server/plasmad 
+  - cd server/plasmad
   - go install ./...
-  - cd ../../client/plasmacli 
+  - cd ../../client/plasmacli
   - go install ./...
 
   # deploy contracts
@@ -57,3 +57,16 @@ install:
 
   # test plasma
   - PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` make test-plasma
+
+
+services:
+  - docker
+
+after_success:
+  - docker build -t foamspace/plasma-demo:latest .
+
+deploy:
+  provider: script
+  script: bash docker-push.sh
+  on:
+    branch: master
