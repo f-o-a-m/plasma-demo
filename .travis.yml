@@ -30,7 +30,7 @@ install:
   - git remote rename origin upstream
   - git remote add origin https://github.com/f-o-a-m/plasma-mvp-sidechain.git
   - git fetch --all
-  - git checkout demo
+  - git checkout develop
   - dep ensure -vendor-only
   - cd server/plasmad
   - go install ./...
