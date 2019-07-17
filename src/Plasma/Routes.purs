@@ -2,6 +2,7 @@ module Plasma.Routes where
 
 import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Reader.Class (class MonadAsk)
+import Data.Maybe (Maybe)
 import Effect.Aff.Class (class MonadAff)
 import Network.Ethereum.Core.HexString (HexString)
 import Plasma.Types as PT
@@ -28,7 +29,7 @@ getHealth = buildGetRequest (RouteProxy :: RouteProxy GetHealth) noCaptures noQu
 type GetUTXOs =
      S "balance"
   :> Capture "owner" PT.EthAddress
-  :> GET (Array PT.UTXO)
+  :> GET (Maybe (Array PT.UTXO))
 
 getUTXOs
   :: forall m.
@@ -36,7 +37,7 @@ getUTXOs
   => MonadError AjaxError m
   => MonadAff m
   => Captures (owner :: PT.EthAddress)
-  -> m (Array PT.UTXO)
+  -> m (Maybe (Array PT.UTXO))
 getUTXOs captures =
   buildGetRequest (RouteProxy :: RouteProxy GetUTXOs) captures noQueryParams noHeaders PT.genericDecoder
 
