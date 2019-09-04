@@ -4,7 +4,7 @@
     "version": "0.0.1",
     "source-dir": "contracts",
     "artifacts-dir": "abis",
-    "modules": [ "Cards.sol"
+    "modules": [ "Cards"
                , "ERC20Receiver"
                , "ExtendedERC20"
                , "LoomToken"
