@@ -15,9 +15,9 @@ import "./ERC20Receiver.sol";
 
 // Lib deps
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "../Libraries/Transaction.sol";
-import "../Libraries/ECVerify.sol";
-import "../Libraries/ChallengeLib.sol";
+import "./libraries/Transaction.sol";
+import "./libraries/ECVerify.sol";
+import "./libraries/ChallengeLib.sol";
 
 // SMT and VMC
 import "./SparseMerkleTree.sol";

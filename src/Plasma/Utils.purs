@@ -25,11 +25,13 @@ import Network.Ethereum.Web3.Solidity.Vector (nilVector, (:<))
 import Network.Ethereum.Web3.Types.TokenUnit (NoPay, mkValue)
 import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions)
 import Partial.Unsafe (unsafeCrashWith)
-import Plasma.Contracts.PlasmaMVP as PlasmaMVP
+-- import Plasma.Contracts.PlasmaMVP as PlasmaMVP
+import Plasma.Contracts.RootChain as RootChain
 import Plasma.Routes as Routes
 import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Output(..), Position(..), Transaction, UTXO(..))
 import Servant.Api.Types (QueryParams(..), Required(..))
 import Servant.Client.Request (AjaxError, ClientEnv)
+import Effect.Exception.Unsafe (unsafeThrow)
 
 makeConfirmationSignatureWithNode
   :: { signer :: Address
@@ -90,18 +92,19 @@ exitUTXO txOpts {utxo: utxo@(UTXO u), originalOwnerEth, originalOwnerPassword, f
         Just (Base64String p) -> p
       EthAddress originalOwner = originalOwnerEth
   pure $ do
-    Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: originalOwner, password: originalOwnerPassword} utxo
-    eminExitBond <- PlasmaMVP.minExitBond txOpts Latest
-    case eminExitBond of
-      Left err -> liftEffect $ throw ("Call error when getting minimum exit bond: " <> show err)
-      Right _minExitBond -> do
-        case validateExitLengths {proof: Base64String proof, txBytes: Base64String weirdRLPBytes, confirmSignatures: [Base64String confirmSignatures]} of
-          Left err -> liftEffect $ throw ("Invalid exit args: " <> err)
-          Right _ -> do
-            let bondedTxOpts = txOpts # _value ?~ mkValue (unUIntN _minExitBond)
-            PlasmaMVP.startTransactionExit bondedTxOpts { txPos
-                                                        , txBytes: weirdRLPBytes
-                                                        , proof
-                                                        , confirmSignatures
-                                                        , committedFee
-                                                        }
+    unsafeThrow "commented out"
+--    Base64String confirmSignatures <- makeConfirmationSignatureWithNode {signer: originalOwner, password: originalOwnerPassword} utxo
+--    eminExitBond <- RootChain.balances txOpts Latest
+--    case eminExitBond of
+--      Left err -> liftEffect $ throw ("Call error when getting minimum exit bond: " <> show err)
+--      Right _minExitBond -> do
+--        case validateExitLengths {proof: Base64String proof, txBytes: Base64String weirdRLPBytes, confirmSignatures: [Base64String confirmSignatures]} of
+--          Left err -> liftEffect $ throw ("Invalid exit args: " <> err)
+--          Right _ -> do
+--            let bondedTxOpts = txOpts # _value ?~ mkValue (unUIntN _minExitBond)
+--            RootChain.startExit bondedTxOpts { txPos
+--                                                        , txBytes: weirdRLPBytes
+--                                                        , proof
+--                                                        , confirmSignatures
+--                                                        , committedFee
+--                                                        }
