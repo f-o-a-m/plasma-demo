@@ -10,7 +10,8 @@ PLASMA_CONFIG_DESTINATION ?= ./plasma.toml
 IS_OPERATOR ?= true
 OPERATOR_PRIVATE_KEY ?= e1c01c07784956abe9c72eb20ac6f0a075edb3e0f61e833e0855a52c6e7c7037
 COMMITMENT_RATE ?= 2
-PLASMA_ARTIFACT ?= ./abis/PlasmaMVP.json
+#PLASMA_ARTIFACT ?= ./abis/PlasmaMVP.json
+PLASMA_ARTIFACT ?= ./abis/RootChain.json
 
 help: ## Ask for help!
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

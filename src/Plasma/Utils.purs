@@ -26,7 +26,7 @@ import Network.Ethereum.Web3.Types.TokenUnit (NoPay, mkValue)
 import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions)
 import Partial.Unsafe (unsafeCrashWith)
 -- import Plasma.Contracts.PlasmaMVP as PlasmaMVP
-import Plasma.Contracts.RootChain as RootChain
+--import Plasma.Contracts.RootChain as RootChain
 import Plasma.Routes as Routes
 import Plasma.Types (Base64String(..), EthAddress(..), GetProofResp(..), Output(..), Position(..), Transaction, UTXO(..))
 import Servant.Api.Types (QueryParams(..), Required(..))

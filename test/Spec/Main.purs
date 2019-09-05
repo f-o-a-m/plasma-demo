@@ -16,7 +16,7 @@ import Effect.Class.Console as C
 import Network.Ethereum.Web3 (httpProvider)
 import Node.Process as NP
 import Plasma.Config.TOML (discoverPlasmaContractAddress)
-import Spec.Config (PlasmaSpecConfig, getFinalizedPeriod, mkUsers, transferOperatorFromMainAccount)
+import Spec.Config (PlasmaSpecConfig, getFinalizedPeriod, mkUsers)
 import Spec.Plasma.PlasmaSpec (plasmaSpec)
 import Test.Spec.Reporter (consoleReporter)
 import Test.Spec.Runner as Runner
@@ -24,25 +24,25 @@ import Unsafe.Coerce (unsafeCoerce)
 import Partial.Unsafe (unsafePartial)
 
 main :: Effect Unit
-main = launchAff_  do
+main = launchAff_ $ do
   nodeUrl <- liftEffect $ fromMaybe "http://localhost:8545" <$> NP.lookupEnv "NODE_URL"
   plasmaUrl <- liftEffect $ fromMaybe "http://localhost:1317" <$> NP.lookupEnv "PLASMA_URL"
   provider <- liftEffect $ httpProvider nodeUrl
   users <- mkUsers provider
-  --deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy'
+  --  deployResults <- buildTestConfig nodeUrl 60 Deploy.deploy'
   plasmaAddress <- discoverPlasmaContractAddress
-  mTx <- assertWeb3 provider $ transferOperatorFromMainAccount {plasmaAddress, account0: users.account0}
-  case mTx of
-    Nothing -> pure unit
-    Just txHash -> void $ do
-      C.log "Waiting to change operators... "
-      pollTransactionReceipt txHash provider
+  --  mTx <- assertWeb3 provider $ transferOperatorFromMainAccount {plasmaAddress, account0: users.account0}
+  --  case mTx of
+  --    Nothing -> pure unit
+  --    Just txHash -> void $ do
+  --      C.log "Waiting to change operators... "
+  --      pollTransactionReceipt txHash provider
   finalizedPeriod <- liftEffect getFinalizedPeriod
   let plasmaConfig :: PlasmaSpecConfig
       plasmaConfig = { plasmaAddress: plasmaAddress
-                     , clientEnv : { protocol: "http"
-                                   , baseURL: (unsafePartial $ fromJust $ stripPrefix (Pattern "http:") plasmaUrl) <> "/"
-                                   }
+                     , clientEnv: { protocol: "http"
+                                  , baseURL: (unsafePartial $ fromJust $ stripPrefix (Pattern "http:") plasmaUrl) <> "/"
+                                  }
                      , provider
                      , users
                      , finalizedPeriod

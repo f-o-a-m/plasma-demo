@@ -16,6 +16,7 @@ import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff, delay)
 import Effect.Aff.Class (liftAff)
 import Effect.Class.Console as C
+import Effect.Exception.Unsafe (unsafeThrow)
 import Network.Ethereum.Core.BigNumber (unsafeToInt)
 import Network.Ethereum.Core.HexString (fromByteString, hexLength, toByteString)
 import Network.Ethereum.Core.Keccak256 (keccak256)
@@ -29,7 +30,8 @@ import Network.Ethereum.Web3.Types (ETHER)
 import Network.Ethereum.Web3.Types.TokenUnit (MinorUnit)
 import Network.Ethereum.Web3.Types.Types (ChainCursor(..), Web3)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
-import Plasma.Contracts.PlasmaMVP as PlasmaMVP
+import Plasma.Contracts.RootChain (depositERC721)
+import Plasma.Contracts.RootChain as RootChain
 import Plasma.Routes as Routes
 import Plasma.Types (EthAddress(..), EthSignature(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroPosition, zeroSignature)
 import Plasma.Utils as Utils
@@ -67,7 +69,7 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
           depositEth = mkValue depositAmount :: Value Wei
       deposit users.bob cfg depositEth >>= case _ of
         Left txHash -> fail ("Failed to submit deposit XX: " <> show txHash)
-        Right (Tuple (Change change) (PlasmaMVP.Deposit ev)) -> do
+        Right (Tuple (Change change) (RootChain.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
           ev.depositor `shouldEqual` users.bob
           ev.amount `shouldEqual` unsafeMkUInt256 depositAmount
@@ -89,7 +91,7 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
 
       deposit bob cfg depositAmountEth >>= case _ of
         Left txHash -> fail ("Failed to submit deposit: " <> show txHash)
-        Right (Tuple (Change change) (PlasmaMVP.Deposit ev)) -> do
+        Right (Tuple (Change change) (RootChain.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
@@ -152,29 +154,29 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                                          , fee: 0
                                          }
           eExitRes <- assertWeb3 provider $
-                takeEventOrFail (Proxy :: Proxy PlasmaMVP.StartedTransactionExit) provider plasmaAddress exitTransaction
+                takeEventOrFail (Proxy :: Proxy RootChain.StartedExit) provider plasmaAddress exitTransaction
           case eExitRes of
             Left exitTxHash -> fail ("Failed to submit startTransactionExit Tx: " <> show exitTxHash)
-            Right (Tuple (Change exitChange) (PlasmaMVP.StartedTransactionExit exitEv)) -> do
+            Right (Tuple (Change exitChange) (RootChain.StartedExit exitEv)) -> do
               C.log ("Exit Transaction submitted succcessfully, txHash: " <> show exitChange.transactionHash)
               assertWeb3 provider $ waitForBlocks finalizedPeriod
 
               let getAlicesBalance = assertWeb3 provider do
                     let balanceOpts = defaultPlasmaTxOptions # _to ?~ plasmaAddress
                                                              # _from ?~ bob
-                    eAliceAddress <- PlasmaMVP.balanceOf balanceOpts Latest {_address : alice}
+                    eAliceAddress <- RootChain.balances balanceOpts Latest {_address : alice}
                     case eAliceAddress of
                       Left err -> unsafeCrashWith $ "Error checking Alice's balance: " <> show err
-                      Right bal -> pure bal
+                      Right bal -> pure bal.withdrawable
               alicesBeforeBalance <- getAlicesBalance
               C.log "Submitting Finalize Transaction ..."
               efinalizeRes <- assertWeb3 provider $ do
-                let finalizeTx = PlasmaMVP.finalizeTransactionExits $ defaultPlasmaTxOptions # _to ?~ plasmaAddress
-                                                                                             # _from ?~ bob
-                takeEventOrFail (Proxy :: Proxy PlasmaMVP.FinalizedExit) provider plasmaAddress finalizeTx
+                let finalizeTx = RootChain.finalizeExits $ defaultPlasmaTxOptions # _to ?~ plasmaAddress
+                                                                                  # _from ?~ bob
+                takeEventOrFail (Proxy :: Proxy RootChain.FinalizedExit) provider plasmaAddress finalizeTx
               case efinalizeRes of
                 Left finalizeTxHash -> fail ("Failed to submit finalizeTransactionExits Tx: " <> show finalizeTxHash)
-                Right (Tuple (Change _) (PlasmaMVP.FinalizedExit _)) -> do
+                Right (Tuple (Change _) (RootChain.FinalizedExit _)) -> do
                   alicesAfterBalance <- getAlicesBalance
                   (unUIntN alicesAfterBalance > unUIntN alicesBeforeBalance) `shouldEqual` true
 
@@ -187,15 +189,17 @@ deposit
   :: Address
   -> PlasmaSpecConfig
   -> Value (MinorUnit ETHER)
-  -> Aff (Either HexString (Tuple Change PlasmaMVP.Deposit))
+  -> Aff (Either HexString (Tuple Change RootChain.Deposit))
 deposit user {plasmaAddress, provider} amount = do
   let txOpts = defaultPlasmaTxOptions # _from ?~ user
                                       # _to ?~ plasmaAddress
-                                      # _value ?~ amount
+                                     -- # _value ?~ amount
   C.log $ "Submitting deposit of " <> show amount <> " from " <> show user <> " to root chain contract"
-  assertWeb3 provider $ takeEventOrFail (Proxy :: Proxy PlasmaMVP.Deposit) provider plasmaAddress $
-              PlasmaMVP.deposit txOpts { owner: user
-                                       }
+  assertWeb3 provider $ takeEventOrFail (Proxy :: Proxy RootChain.Deposit) provider plasmaAddress $
+              RootChain.depositERC721 txOpts { -- owner: user
+                                               contractAddress: user
+                                             , uid: unsafeMkUInt256 $ embed 1
+                                             }
 
 -- | Includes deposit of an user (address) into the side-chain
 includeDeposit
@@ -225,13 +229,14 @@ waitForUTXORootCommit
 waitForUTXORootCommit args@{plasmaAddress, utxo: UTXO {position: Position p}} = do
   C.log $ "Ensureing that block " <> show p.blockNumber <> " has been committed to the root chain ..."
   let txOpts = defaultTransactionOptions # _to ?~ plasmaAddress
-  eRes <- PlasmaMVP.lastCommittedBlock txOpts Latest
-  case eRes of
-    Left _ -> unsafeCrashWith "Storage Error in lastCommittedBlock"
-    Right bn ->
-      if embed p.blockNumber > unUIntN bn
-         then do
-           C.log ("Waiting for block to be committed to root chain: " <> show p.blockNumber <> " (current: " <> show bn <> ")")
-           liftAff $ delay (Milliseconds 1000.0)
-           waitForUTXORootCommit args
-         else pure unit
+  unsafeThrow "commented ou"
+  -- eRes <- RootChain.lastCommittedBlock txOpts Latest
+  -- case eRes of
+  --   Left _ -> unsafeCrashWith "Storage Error in lastCommittedBlock"
+  --   Right bn ->
+  --     if embed p.blockNumber > unUIntN bn
+  --        then do
+  --          C.log ("Waiting for block to be committed to root chain: " <> show p.blockNumber <> " (current: " <> show bn <> ")")
+  --          liftAff $ delay (Milliseconds 1000.0)
+  --          waitForUTXORootCommit args
+  --        else pure unit
