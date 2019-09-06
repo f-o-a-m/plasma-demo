@@ -4,12 +4,7 @@
     "version": "0.0.1",
     "source-dir": "contracts",
     "artifacts-dir": "abis",
-    "modules": [ "CryptoCards"
-               , "ERC20Receiver"
-               , "ExtendedERC20"
-               , "LoomToken"
-               , "RootChain"
-               , "SparseMerkleTree"
+    "modules": [ "RootChain"
                , "ValidatorManagerContract"
                ],
     "dependencies": [ "solidity-rlp"
