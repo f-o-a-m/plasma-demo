@@ -2,6 +2,7 @@ module Spec.Plasma.PlasmaSpec (plasmaSpec) where
 
 import Prelude
 
+import Network.Ethereum.Web3.Solidity.Tuple (Tuple2(..))
 import Chanterelle.Test (assertWeb3)
 import Data.Array (filter, head, sortWith)
 import Data.ByteString as BS
@@ -71,14 +72,14 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
         Left txHash -> fail ("Failed to submit deposit XX: " <> show txHash)
         Right (Tuple (Change change) (RootChain.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
-          ev.depositor `shouldEqual` users.bob
-          ev.amount `shouldEqual` unsafeMkUInt256 depositAmount
+          ev.from `shouldEqual` users.bob
+          ev.denomination `shouldEqual` unsafeMkUInt256 depositAmount
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
-          txHash <- includeDeposit users.bob cfg ev.depositNonce
+          txHash <- includeDeposit users.bob cfg ev.blockNumber
           bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
           let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
-                (un Position u.position).depositNonce == unsafeUIntNToInt ev.depositNonce
+                (un Position u.position).depositNonce == unsafeUIntNToInt ev.blockNumber
           utxo `shouldSatisfy` isJust
 
 spendSpec :: PlasmaSpecConfig -> Spec Unit
@@ -96,11 +97,11 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
           C.log "Including deposit on Plasma chain"
-          txHash <- includeDeposit users.bob cfg ev.depositNonce
+          txHash <- includeDeposit users.bob cfg ev.blockNumber
           assertWeb3 provider $ waitForBlocks finalizedPeriod
 
           C.log "Test that the UTXO exists on the plasma chain now and is unspent"
-          let position =  zeroPosition # positionDepositNonce .~ unsafeUIntNToInt ev.depositNonce
+          let position =  zeroPosition # positionDepositNonce .~ unsafeUIntNToInt ev.blockNumber
           UTXO utxo <- assertRequest clientEnv $ Routes.getUTXO (QueryParams  { ownerAddress : Required $ EthAddress users.bob
                                                                               , position : Required position
                                                                               }
@@ -164,15 +165,14 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
               let getAlicesBalance = assertWeb3 provider do
                     let balanceOpts = defaultPlasmaTxOptions # _to ?~ plasmaAddress
                                                              # _from ?~ bob
-                    eAliceAddress <- RootChain.balances balanceOpts Latest {_address : alice}
+                    eAliceAddress <- RootChain.balances balanceOpts Latest alice
                     case eAliceAddress of
                       Left err -> unsafeCrashWith $ "Error checking Alice's balance: " <> show err
-                      Right bal -> pure bal.withdrawable
+                      Right (Tuple2 bonded withdrawable) -> pure bonded
               alicesBeforeBalance <- getAlicesBalance
               C.log "Submitting Finalize Transaction ..."
               efinalizeRes <- assertWeb3 provider $ do
-                let finalizeTx = RootChain.finalizeExits $ defaultPlasmaTxOptions # _to ?~ plasmaAddress
-                                                                                  # _from ?~ bob
+                let finalizeTx = RootChain.finalizeExits ( defaultPlasmaTxOptions # _to ?~ plasmaAddress # _from ?~ bob ) { slots: mempty }
                 takeEventOrFail (Proxy :: Proxy RootChain.FinalizedExit) provider plasmaAddress finalizeTx
               case efinalizeRes of
                 Left finalizeTxHash -> fail ("Failed to submit finalizeTransactionExits Tx: " <> show finalizeTxHash)

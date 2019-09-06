@@ -50,4 +50,4 @@ deploy-and-test: deploy-contracts write-plasma-toml
 	sleep 2
 	docker exec -d -e NODE_URL='"http://cliquebait:8545"'  plasma-demo_plasma_1 './run.sh'
 	sleep 2
-	NODE_URL="http://localhost:8545" PLASMA_ADDRESS=`cat abis/PlasmaMVP.json | jq -r ".networks[].address"` make test-plasma
+	NODE_URL="http://localhost:8545" PLASMA_ADDRESS=`cat ./abis/RootChain.json | jq -r ".networks[].address"` make test-plasma
