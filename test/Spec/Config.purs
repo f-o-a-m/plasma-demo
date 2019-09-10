@@ -21,7 +21,6 @@ import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions, W
 import Node.Process as NP
 import Partial.Unsafe (unsafeCrashWith)
 import Plasma.Config.Utils (asPrivateKey, requireEnvVar)
---import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Contracts.RootChain as RootChain
 import Servant.Client.Request (ClientEnv)
 
@@ -33,7 +32,6 @@ type Users =
 
 defaultPlasmaTxOptions :: TransactionOptions NoPay
 defaultPlasmaTxOptions = defaultTransactionOptions # _gas  ?~ embed 8000000
-
 
 -- transferOperatorFromMainAccount
 --   :: { plasmaAddress :: Address
@@ -80,6 +78,7 @@ getFinalizedPeriod = do
 
 type PlasmaSpecConfig =
   { plasmaAddress :: Address
+  , nftAddress :: Address
   , provider :: Provider
   , clientEnv :: ClientEnv
   , users :: Users

@@ -33,6 +33,7 @@ import Network.Ethereum.Web3.Types.Types (ChainCursor(..), Web3)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Plasma.Contracts.RootChain (depositERC721)
 import Plasma.Contracts.RootChain as RootChain
+import Plasma.Contracts.CryptoCards as CryptoCards
 import Plasma.Routes as Routes
 import Plasma.Types (EthAddress(..), EthSignature(..), Input(..), Output(..), Position(..), PostDepositBody(..), Transaction(..), UTXO(..), emptyInput, emptyOutput, inputSignature, positionDepositNonce, removeEthereumSignatureShift, signatureFromByteString, transactionInput0, zeroPosition, zeroSignature)
 import Plasma.Utils as Utils
@@ -46,8 +47,8 @@ import Type.Proxy (Proxy(..))
 
 plasmaSpec :: PlasmaSpecConfig -> Spec Unit
 plasmaSpec cfg = do
---  nodeHealthSpec cfg
---  depositSpec cfg
+  nodeHealthSpec cfg
+  depositSpec cfg
   spendSpec cfg
 
 nodeHealthSpec
@@ -66,31 +67,34 @@ depositSpec cfg@{plasmaAddress, clientEnv, provider, users, finalizedPeriod} = d
   describe "Plasma Root Contract" $
     it "can deposit some ETH into the rootchain contract, transfer it to the sidechain, and find the utxo" $ do
       C.log $ "plasmaAddress: " <> show plasmaAddress
-      let depositAmount = embed 1000
-          depositEth = mkValue depositAmount :: Value Wei
-      deposit users.bob cfg depositEth >>= case _ of
-        Left txHash -> fail ("Failed to submit deposit XX: " <> show txHash)
-        Right (Tuple (Change change) (RootChain.Deposit ev)) -> do
-          C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
-          ev.from `shouldEqual` users.bob
-          ev.denomination `shouldEqual` unsafeMkUInt256 depositAmount
-          assertWeb3 provider $ waitForBlocks finalizedPeriod
+      let depositToken = unsafeMkUInt256 $ embed 1
+      mint users.bob cfg >>= case _ of
+        Left _ -> fail "couldn't register"
+        Right _ -> do
+          C.log "success registering"
+          deposit users.bob cfg depositToken >>= case _ of
+            Left txHash -> fail ("Failed to submit deposit XX: " <> show txHash)
+            Right (Tuple (Change change) (RootChain.Deposit ev)) -> do
+              C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
+              ev.from `shouldEqual` users.bob
+              ev.denomination `shouldEqual` depositToken
+              assertWeb3 provider $ waitForBlocks finalizedPeriod
 
-          txHash <- includeDeposit users.bob cfg ev.blockNumber
-          bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
-          let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
-                (un Position u.position).depositNonce == unsafeUIntNToInt ev.blockNumber
-          utxo `shouldSatisfy` isJust
+              txHash <- includeDeposit users.bob cfg ev.blockNumber
+              bobsUTXOs <- assertRequest clientEnv $ Routes.getUTXOs (Captures {owner: EthAddress users.bob})
+              let utxo = head $ flip filter bobsUTXOs \(UTXO u) ->
+                    (un Position u.position).depositNonce == unsafeUIntNToInt ev.blockNumber
+              utxo `shouldSatisfy` isJust
 
 spendSpec :: PlasmaSpecConfig -> Spec Unit
 spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
   describe "Plasma Root Contract" $
     it "can complete the happy path for a sidechain payment channel" $ do
-      let depositAmountEth = mkValue (embed 10000) :: Value Wei
+      let depositToken = unsafeMkUInt256 $ embed 2
           bob = users.bob
           alice = users.alice
 
-      deposit bob cfg depositAmountEth >>= case _ of
+      deposit bob cfg depositToken >>= case _ of
         Left txHash -> fail ("Failed to submit deposit: " <> show txHash)
         Right (Tuple (Change change) (RootChain.Deposit ev)) -> do
           C.log ("Desposit submitted succcessfully, txHash: " <> show change.transactionHash)
@@ -180,7 +184,6 @@ spendSpec cfg@{plasmaAddress, users, provider, finalizedPeriod, clientEnv} = do
                   alicesAfterBalance <- getAlicesBalance
                   (unUIntN alicesAfterBalance > unUIntN alicesBeforeBalance) `shouldEqual` true
 
-
 unsafeUIntNToInt :: forall n . KnownSize n => UIntN n -> Int
 unsafeUIntNToInt = unsafeToInt <<< unUIntN
 
@@ -188,18 +191,27 @@ unsafeUIntNToInt = unsafeToInt <<< unUIntN
 deposit
   :: Address
   -> PlasmaSpecConfig
-  -> Value (MinorUnit ETHER)
+  -> _
   -> Aff (Either HexString (Tuple Change RootChain.Deposit))
-deposit user {plasmaAddress, provider} amount = do
+deposit user {plasmaAddress, nftAddress, provider} tokenID = do
   let txOpts = defaultPlasmaTxOptions # _from ?~ user
                                       # _to ?~ plasmaAddress
-                                     -- # _value ?~ amount
-  C.log $ "Submitting deposit of " <> show amount <> " from " <> show user <> " to root chain contract"
+  C.log $ "Submitting deposit of nft id " <> show tokenID <> " from " <> show user <> " to root chain contract"
   assertWeb3 provider $ takeEventOrFail (Proxy :: Proxy RootChain.Deposit) provider plasmaAddress $
-              RootChain.depositERC721 txOpts { -- owner: user
-                                               contractAddress: user
-                                             , uid: unsafeMkUInt256 $ embed 1
+              RootChain.depositERC721 txOpts { contractAddress: nftAddress
+                                             , uid: tokenID
                                              }
+
+mint
+  :: Address
+  -> PlasmaSpecConfig
+  -> Aff (Either HexString (Tuple Change CryptoCards.Transfer))
+mint user {plasmaAddress, nftAddress, provider} = do
+  let txOpts = defaultPlasmaTxOptions # _from ?~ user
+                                      # _to ?~ nftAddress
+  C.log $ "Calling CryptoCards.register() to mint 5 tokens for " <> show user
+  assertWeb3 provider $ takeEventOrFail (Proxy :: Proxy CryptoCards.Transfer) provider nftAddress $
+              CryptoCards.register txOpts
 
 -- | Includes deposit of an user (address) into the side-chain
 includeDeposit
@@ -214,7 +226,6 @@ includeDeposit user {provider, clientEnv} depositNonce = do
                                     }
   C.log "Including deposit into side chain..."
   assertRequest clientEnv $ Routes.postIncludeDeposit depositBody
-
 
 makeRidiculousEthereumMessage :: HexString -> HexString
 makeRidiculousEthereumMessage s =

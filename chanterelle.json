@@ -6,6 +6,7 @@
     "artifacts-dir": "abis",
     "modules": [ "RootChain"
                , "ValidatorManagerContract"
+               , "CryptoCards"
                ],
     "dependencies": [ "solidity-rlp"
                     , "openzeppelin-solidity"

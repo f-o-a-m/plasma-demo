@@ -1,4 +1,4 @@
-module Plasma.Deploy (deploy) where
+module Plasma.Deploy (deploy, deploy') where
 
 import Prelude
 
@@ -17,6 +17,15 @@ import Partial.Unsafe (unsafePartial)
 --import Plasma.Contracts.PlasmaMVP as PlasmaMVP
 import Plasma.Contracts.RootChain as RootChain
 import Plasma.Contracts.ValidatorManagerContract as ValidatorManagerContract
+import Plasma.Contracts.CryptoCards as CryptoCards
+
+nftContract :: ContractConfig NoArgs
+nftContract =
+  { filepath: "abis/CryptoCards.json"
+  , name: "CryptoCards"
+  , constructor: constructorNoArgs
+  , unvalidatedArgs: noArgs
+  }
 
 validatorManagerContract :: ContractConfig NoArgs
 validatorManagerContract =
@@ -36,38 +45,12 @@ mkRootChain { _vmc} =
     , unvalidatedArgs: pure { _vmc }
     }
 
---------------------------------------------------------------------------------
--- | PlasmaMVP
---------------------------------------------------------------------------------
-
--- plasmaTestConfig :: ContractConfig ( _exitDelay :: UIntN S256
---                                    , _depositChallengePeriod :: UIntN S256
---                                    , _nonDepositChallengePeriod :: UIntN S256
---                                    , _minExitBond :: UIntN S256
---                                    )
--- plasmaTestConfig =
---     { filepath: "abis/PlasmaMVP.json"
---     , name: "PlasmaMVP"
---     , constructor: PlasmaMVP.constructor
---     , unvalidatedArgs: plasmaArgs
---     }
---   where
---     plasmaArgs = ado
---       _exitDelay <- uIntNFromBigNumber s256 (embed 10) ?? "_exitDelay must be a valid UINT"
---       _depositChallengePeriod <- uIntNFromBigNumber s256 (embed 10) ?? "_depositChallengePeriod must be a valid UINT"
---       _nonDepositChallengePeriod <- uIntNFromBigNumber s256 (embed 10) ?? "_nonDepositChallengePeriod must be a valid UINT"
---       _minExitBond <- uIntNFromBigNumber s256 (embed 200000) ?? "_minExitBond must be a valid UINT"
---       in { _exitDelay
---          , _depositChallengePeriod
---          , _nonDepositChallengePeriod
---          , _minExitBond
---          }
-
 type DeployResults =
   { plasmaAddress :: Address
   , plasmaDeployHash  :: HexString
+  , nftAddress :: Address
+  , nftDeployHash :: HexString
   }
-
 
 deploy :: DeployM Unit
 deploy = void deploy'
@@ -78,11 +61,14 @@ deploy' = do
   let bigGasLimit = unsafePartial fromJust $ parseBigNumber decimal "8000000"
       txOpts = defaultTransactionOptions # _from ?~ primaryAccount
                                          # _gas ?~ bigGasLimit
+  nft <- deployContract txOpts nftContract
   vmc <- deployContract txOpts validatorManagerContract
   let rootConfig = mkRootChain { _vmc: vmc.deployAddress }
-  plasma  <- deployContract txOpts rootConfig
+  plasma <- deployContract txOpts rootConfig
   pure { plasmaAddress: plasma.deployAddress
        , plasmaDeployHash: plasma.deployHash
+       , nftAddress: nft.deployAddress
+       , nftDeployHash: nft.deployHash
        }
 
 --------------------------------------------------------------------------------
