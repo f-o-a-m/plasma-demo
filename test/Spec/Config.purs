@@ -21,7 +21,7 @@ import Network.Ethereum.Web3.Types.Types (ChainCursor(..), TransactionOptions, W
 import Node.Process as NP
 import Partial.Unsafe (unsafeCrashWith)
 import Plasma.Config.Utils (asPrivateKey, requireEnvVar)
-import Plasma.Contracts.PlasmaMVP as PlasmaMVP
+import Plasma.Contracts.RootChain as RootChain
 import Servant.Client.Request (ClientEnv)
 
 type Users =
@@ -33,24 +33,23 @@ type Users =
 defaultPlasmaTxOptions :: TransactionOptions NoPay
 defaultPlasmaTxOptions = defaultTransactionOptions # _gas  ?~ embed 8000000
 
-
-transferOperatorFromMainAccount
-  :: { plasmaAddress :: Address
-     , account0 :: Address
-     }
-  -> Web3 (Maybe HexString)
-transferOperatorFromMainAccount {plasmaAddress, account0} = do
-  operatorKey <- requireEnvVar "OPERATOR_PRIVATE_KEY" asPrivateKey
-  let operatorAddress = privateToAddress operatorKey
-      txOpts = defaultPlasmaTxOptions # _to ?~ plasmaAddress
-                                      # _from ?~ account0
-  eOperator <- PlasmaMVP.operator txOpts Latest
-  case eOperator of
-    Left err -> liftEffect $ throw "Error when switching to new operator."
-    Right currentOperator ->
-      if currentOperator == operatorAddress
-         then pure Nothing
-         else Just <$> PlasmaMVP.changeOperator txOpts {newOperator: operatorAddress}
+-- transferOperatorFromMainAccount
+--   :: { plasmaAddress :: Address
+--      , account0 :: Address
+--      }
+--   -> Web3 (Maybe HexString)
+-- transferOperatorFromMainAccount {plasmaAddress, account0} = do
+--   operatorKey <- requireEnvVar "OPERATOR_PRIVATE_KEY" asPrivateKey
+--   let operatorAddress = privateToAddress operatorKey
+--       txOpts = defaultPlasmaTxOptions # _to ?~ plasmaAddress
+--                                       # _from ?~ account0
+--   eOperator <- PlasmaMVP.operator txOpts Latest
+--   case eOperator of
+--     Left err -> liftEffect $ throw "Error when switching to new operator."
+--     Right currentOperator ->
+--       if currentOperator == operatorAddress
+--          then pure Nothing
+--          else Just <$> PlasmaMVP.changeOperator txOpts {newOperator: operatorAddress}
 
 
 mkUsers :: Provider -> Aff Users
@@ -79,6 +78,7 @@ getFinalizedPeriod = do
 
 type PlasmaSpecConfig =
   { plasmaAddress :: Address
+  , nftAddress :: Address
   , provider :: Provider
   , clientEnv :: ClientEnv
   , users :: Users

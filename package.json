@@ -17,8 +17,9 @@
     "purescript-psa": "^0.6.0",
     "rlp": "^2.0.0",
     "secp256k1": "^3.0.1",
-    "solc": "v0.5.0",
-    "solidity-rlp": "^2.0.0"
+    "solc": "v0.4.24",
+    "solidity-rlp": "^2.0.0",
+    "openzeppelin-solidity": "^1.0.0"
   },
   "dependencies": {}
 }
