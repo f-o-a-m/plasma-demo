@@ -8,7 +8,7 @@ import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), fromMaybe, fromJust)
 import Data.Newtype (un)
 import Data.String (Pattern(..), stripPrefix)
-import Data.Time.Duration (Minutes(..), fromDuration)
+import Data.Time.Duration (Minutes(..), fromDuration, Seconds(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -52,5 +52,5 @@ main = launchAff_ $ do
   do
     C.log "Running PlasmaSpec with config:"
     C.log (unsafeCoerce plasmaConfig)
-  un Identity $ Runner.runSpecT Runner.defaultConfig {timeout = Just (fromDuration $ Minutes 6.0)} [consoleReporter] do
+  un Identity $ Runner.runSpecT Runner.defaultConfig {timeout = Just (fromDuration $ Seconds 30.0)} [consoleReporter] do
     plasmaSpec plasmaConfig

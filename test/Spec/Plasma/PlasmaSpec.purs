@@ -201,6 +201,7 @@ deposit user {plasmaAddress, nftAddress, provider} tokenID = do
               RootChain.depositERC721 txOpts { contractAddress: nftAddress
                                              , uid: tokenID
                                              }
+--                                             }
 
 mint
   :: Address

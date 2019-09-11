@@ -12,25 +12,25 @@
                     , "openzeppelin-solidity"
                     ],
     "libraries": {
-      "BytesUtil": {
+      "ChallengeLib": {
         "address": "0x3b4a9878a26f2557e5c61df82bc84f07842fa939",
         "code": {
           "file": "contracts/libraries/ChallengeLib.sol"
         }
       },
-      "SafeMath": {
+      "ECVerify": {
         "address": "0x7ff8b020c2ecd40613063ae1d2ee6a2a383793fa",
         "code": {
           "file": "contracts/libraries/ECVerify.sol"
         }
       },
-      "MinPriorityQueue": {
+      "RLP": {
         "address": "0xae5126311d5644f681b64c6737fc6bc23296dac0",
         "code": {
           "file": "contracts/libraries/RLP.sol"
         }
       },
-      "TMSimpleMerkleTree": {
+      "Transaction": {
         "address": "0x8517e368b9b5ce3c50f00c61512277978baa0983",
         "code": {
           "file": "contracts/libraries/Transaction.sol"

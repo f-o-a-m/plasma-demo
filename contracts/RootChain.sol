@@ -143,7 +143,7 @@ contract RootChain is ERC721Receiver, ERC20Receiver {
     // between T1 and T2
     uint256 constant MATURITY_PERIOD = 7 days;
     uint256 constant CHALLENGE_WINDOW = 3 days + 12 hours;
-    bool paused;
+    bool paused = false;
 
     /*
      * Modifiers
